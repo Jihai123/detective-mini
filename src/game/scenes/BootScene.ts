@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { CASES } from '../../data/cases';
 import { validateCaseFile } from '../../domain/validators';
+import { preloadCaseAssets } from '../systems/CaseAssetStore';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -8,8 +9,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('bg-tutorial-001', '/case-art/tutorial-bg.svg');
-    this.load.image('bg-case-001', '/case-art/case001-bg.svg');
+    CASES.forEach((caseFile) => preloadCaseAssets(this, caseFile));
   }
 
   create() {

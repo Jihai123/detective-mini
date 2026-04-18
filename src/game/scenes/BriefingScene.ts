@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { getCaseById } from '../../data/cases';
-import { drawPanel, drawWorkbenchBackground, fadeInScene, makeButton } from './ui';
+import { drawCaseSceneBackground, drawPanel, fadeInScene, makeButton } from './ui';
 
 type BriefingData = { caseId: string };
 
@@ -19,7 +19,7 @@ export class BriefingScene extends Phaser.Scene {
     const caseFile = getCaseById(this.caseId);
     if (!caseFile) throw new Error('Case not found');
 
-    drawWorkbenchBackground(this);
+    drawCaseSceneBackground(this, caseFile, 'main');
     fadeInScene(this);
 
     drawPanel(this, 56, 48, 1328, 804, '案件导入 / BRIEFING');
@@ -37,7 +37,7 @@ export class BriefingScene extends Phaser.Scene {
 
     let y = 312;
     caseFile.briefing.sections.forEach((section) => {
-      this.add.rectangle(82, y, 1220, 126, 0x0b1424, 0.95).setOrigin(0, 0).setStrokeStyle(1, 0x334155);
+      this.add.rectangle(82, y, 1220, 126, 0x0b1424, 0.76).setOrigin(0, 0).setStrokeStyle(1, 0x334155);
       this.add.text(100, y + 14, section.headline, { fontSize: '22px', color: '#c4b5fd', fontStyle: 'bold' });
       this.add.text(100, y + 50, section.body, { fontSize: '15px', color: '#cbd5e1', wordWrap: { width: 1180 }, lineSpacing: 5 });
       y += 138;

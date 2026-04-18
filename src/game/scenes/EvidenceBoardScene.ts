@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { getCaseById } from '../../data/cases';
 import type { EvidenceCategory } from '../../domain/types';
 import { getCaseSession } from '../systems/InvestigationSessionStore';
-import { drawPanel, drawWorkbenchBackground, fadeInScene, makeButton } from './ui';
+import { drawCaseSceneBackground, drawPanel, fadeInScene, makeButton } from './ui';
 
 type SceneData = { caseId: string };
 
@@ -33,7 +33,7 @@ export class EvidenceBoardScene extends Phaser.Scene {
     if (!caseFile) throw new Error('Case not found');
     const state = getCaseSession(caseFile);
 
-    drawWorkbenchBackground(this);
+    drawCaseSceneBackground(this, caseFile, 'archive');
     fadeInScene(this);
 
     drawPanel(this, 48, 44, 852, 810, '线索归档 / EVIDENCE BOARD');

@@ -1,7 +1,8 @@
 import * as Phaser from 'phaser';
 import { getCaseById } from '../../data/cases';
+import { getCaseAssetTextureKey } from '../systems/CaseAssetStore';
 import { getCaseSession, startCaseSession } from '../systems/InvestigationSessionStore';
-import { drawPanel, drawWorkbenchBackground, fadeInScene, makeButton } from './ui';
+import { drawCaseSceneBackground, drawPanel, fadeInScene, makeButton } from './ui';
 
 type InvestigationData = { caseId: string; resetSession?: boolean };
 
@@ -24,7 +25,7 @@ export class InvestigationScene extends Phaser.Scene {
     if (!caseFile) throw new Error('Case not found');
     const state = getCaseSession(caseFile);
 
-    drawWorkbenchBackground(this);
+    drawCaseSceneBackground(this, caseFile, 'main');
     fadeInScene(this);
 
     drawPanel(this, 48, 44, 980, 810, '场景调查 / INVESTIGATION');
@@ -33,11 +34,23 @@ export class InvestigationScene extends Phaser.Scene {
     this.add.text(70, 90, caseFile.title, { fontSize: '28px', color: '#f8fafc', fontStyle: 'bold' });
     this.add.text(70, 126, '点击热区收集观察信息。先调查，再归档。', { fontSize: '14px', color: '#7dd3fc' });
 
-    const bgKey = caseFile.id === 'tutorial-001' ? 'bg-tutorial-001' : caseFile.id === 'case-001' ? 'bg-case-001' : undefined;
-    if (bgKey && this.textures.exists(bgKey)) {
-      this.add.image(530, 430, bgKey).setDisplaySize(920, 520).setAlpha(0.45);
-    }
-    this.add.rectangle(70, 170, 920, 520, 0x0f172a, 0.55).setOrigin(0, 0).setStrokeStyle(1, 0x334155);
+    this.add.rectangle(70, 170, 920, 520, 0x0f172a, 0.3).setOrigin(0, 0).setStrokeStyle(1, 0x334155);
+    let sceneBg: Phaser.GameObjects.Image | undefined;
+    const updateSceneBackground = (sceneAsset = 'main') => {
+      const textureKey = getCaseAssetTextureKey(caseFile, 'scenes', sceneAsset) ?? getCaseAssetTextureKey(caseFile, 'scenes', 'main');
+      if (!textureKey || !this.textures.exists(textureKey)) {
+        sceneBg?.setVisible(false);
+        return;
+      }
+      if (!sceneBg) {
+        sceneBg = this.add.image(530, 430, textureKey);
+      }
+      const source = this.textures.get(textureKey).getSourceImage() as { width: number; height: number };
+      const scale = Math.max(920 / source.width, 520 / source.height);
+      sceneBg.setTexture(textureKey).setScale(scale).setAlpha(0.72).setVisible(true);
+    };
+    updateSceneBackground('main');
+    this.add.rectangle(70, 170, 920, 520, 0x0f172a, 0.45).setOrigin(0, 0);
     this.add.text(92, 188, `场景：${caseFile.archiveMeta.location}`, { fontSize: '16px', color: '#c4b5fd' });
 
     const detailBox = this.add.rectangle(70, 704, 920, 130, 0x0b1424, 1).setOrigin(0, 0).setStrokeStyle(1, 0x3b82f6);
@@ -84,6 +97,7 @@ export class InvestigationScene extends Phaser.Scene {
         marker.setFillStyle(0x22c55e, 0.95);
 
         detailBox.setStrokeStyle(1, 0x22c55e);
+        updateSceneBackground(hotspot.sceneAsset ?? 'main');
         detailText.setText(
           `${hotspot.label}（${hotspot.region}）\n${hotspot.description}\n\n发现：${hotspot.discoveryText}\n解锁线索：${hotspot.clueIds.length} 条，谈话：${hotspot.conversationIds.length} 条`
         );

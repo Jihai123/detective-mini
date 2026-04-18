@@ -1,7 +1,8 @@
 import * as Phaser from 'phaser';
 import { getCaseById } from '../../data/cases';
+import { getCaseAssetTextureKey } from '../systems/CaseAssetStore';
 import { getCaseSession } from '../systems/InvestigationSessionStore';
-import { drawPanel, drawWorkbenchBackground, fadeInScene, makeButton } from './ui';
+import { addContainedImage, drawCaseSceneBackground, drawPanel, fadeInScene, makeButton } from './ui';
 
 type SceneData = { caseId: string };
 
@@ -21,7 +22,7 @@ export class ProfilesScene extends Phaser.Scene {
     if (!caseFile) throw new Error('Case not found');
     const state = getCaseSession(caseFile);
 
-    drawWorkbenchBackground(this);
+    drawCaseSceneBackground(this, caseFile, 'hallway');
     fadeInScene(this);
 
     drawPanel(this, 48, 44, 520, 810, '人物档案');
@@ -31,12 +32,18 @@ export class ProfilesScene extends Phaser.Scene {
 
     let y = 130;
     caseFile.suspects.forEach((s) => {
-      this.add.rectangle(70, y, 476, 172, 0x0b1424, 0.95).setOrigin(0, 0).setStrokeStyle(1, 0x334155);
-      this.add.text(84, y + 10, `${s.name}｜${s.role}`, { fontSize: '20px', color: '#e2e8f0', fontStyle: 'bold' });
-      this.add.text(84, y + 44, `身份：${s.identity}\n关系：${s.relationToCase}\n当晚行为：${s.nightAction}\n可疑点：${s.suspiciousPoint}\n动机：${s.motive}`, {
+      this.add.rectangle(70, y, 476, 172, 0x0b1424, 0.78).setOrigin(0, 0).setStrokeStyle(1, 0x334155);
+      this.add.rectangle(84, y + 16, 108, 140, 0x020617, 0.65).setOrigin(0, 0).setStrokeStyle(1, 0x334155);
+      const portraitKey = s.portraitAsset ? getCaseAssetTextureKey(caseFile, 'characters', s.portraitAsset) : undefined;
+      if (portraitKey && this.textures.exists(portraitKey)) {
+        addContainedImage(this, 86, y + 18, 104, 136, portraitKey, 1);
+      }
+
+      this.add.text(202, y + 10, `${s.name}｜${s.role}`, { fontSize: '20px', color: '#e2e8f0', fontStyle: 'bold' });
+      this.add.text(202, y + 44, `身份：${s.identity}\n关系：${s.relationToCase}\n当晚行为：${s.nightAction}\n可疑点：${s.suspiciousPoint}\n动机：${s.motive}`, {
         fontSize: '13px',
         color: '#cbd5e1',
-        wordWrap: { width: 450 },
+        wordWrap: { width: 334 },
         lineSpacing: 4
       });
       y += 184;
@@ -49,7 +56,7 @@ export class ProfilesScene extends Phaser.Scene {
 
     let cy = 126;
     unlocked.forEach((conv) => {
-      this.add.rectangle(604, cy, 766, 146, 0x111827, 0.95).setOrigin(0, 0).setStrokeStyle(1, 0x22c55e);
+      this.add.rectangle(604, cy, 766, 146, 0x111827, 0.8).setOrigin(0, 0).setStrokeStyle(1, 0x22c55e);
       const suspect = caseFile.suspects.find((s) => s.id === conv.suspectId);
       this.add.text(620, cy + 10, `${conv.title}｜${suspect?.name ?? '未知人物'}`, { fontSize: '18px', color: '#bbf7d0', fontStyle: 'bold' });
       this.add.text(620, cy + 44, conv.lines.map((line) => `- ${line}`).join('\n'), {
