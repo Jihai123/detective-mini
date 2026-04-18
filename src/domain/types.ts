@@ -22,6 +22,7 @@ export type Suspect = {
   id: string;
   name: string;
   role: string;
+  portraitAsset?: string;
   identity: string;
   relationToCase: string;
   nightAction: string;
@@ -55,11 +56,17 @@ export type InvestigationHotspot = {
   id: string;
   label: string;
   region: string;
+  sceneAsset?: string;
   description: string;
   discoveryText: string;
   clueIds: string[];
   conversationIds: string[];
   isOptional?: boolean;
+};
+
+export type CaseAssets = {
+  scenes: Record<string, string>;
+  characters: Record<string, string>;
 };
 
 export type TimelineSlot = {
@@ -82,6 +89,7 @@ export type CaseFile = {
   id: string;
   title: string;
   difficulty: CaseDifficulty;
+  assets?: CaseAssets;
   archiveMeta: ArchiveMeta;
   archiveSubtitle: string;
   briefing: Briefing;

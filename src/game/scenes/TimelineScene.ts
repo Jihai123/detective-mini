@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { getCaseById } from '../../data/cases';
 import { getCaseSession } from '../systems/InvestigationSessionStore';
-import { drawPanel, drawWorkbenchBackground, fadeInScene, makeButton } from './ui';
+import { drawCaseSceneBackground, drawPanel, fadeInScene, makeButton } from './ui';
 
 type SceneData = { caseId: string };
 
@@ -21,7 +21,7 @@ export class TimelineScene extends Phaser.Scene {
     if (!caseFile) throw new Error('Case not found');
     const state = getCaseSession(caseFile);
 
-    drawWorkbenchBackground(this);
+    drawCaseSceneBackground(this, caseFile, 'archive');
     fadeInScene(this);
 
     drawPanel(this, 48, 44, 1344, 810, '时间线推理板 / TIMELINE BOARD');

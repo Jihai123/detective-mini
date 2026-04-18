@@ -4,6 +4,18 @@ export const case001: CaseFile = {
   id: 'case-001',
   title: '正式档案：08:17 的空档',
   difficulty: 'normal',
+  assets: {
+    scenes: {
+      main: '/assets/cases/case-001/scenes/meeting_room.jpg',
+      hallway: '/assets/cases/case-001/scenes/hallway.jpg',
+      archive: '/assets/cases/case-001/scenes/archive_room.jpg'
+    },
+    characters: {
+      linlan: '/assets/cases/case-001/characters/linlan.png',
+      songhao: '/assets/cases/case-001/characters/songhao.png',
+      guwen: '/assets/cases/case-001/characters/guwen.png'
+    }
+  },
   archiveSubtitle: 'B7 报告原件失踪 / 审查前关键三分钟',
   archiveMeta: {
     type: '核心报告转移',
@@ -35,6 +47,7 @@ export const case001: CaseFile = {
       id: 'c1-s1',
       name: '林澈',
       role: '项目经理',
+      portraitAsset: 'linlan',
       identity: '负责审查会主持与报告交付。',
       relationToCase: '对报告中“延期归责”段落最敏感。',
       nightAction: '称 08:10 起一直在会议室调试简报。',
@@ -46,6 +59,7 @@ export const case001: CaseFile = {
       id: 'c1-s2',
       name: '宋遥',
       role: '数据分析师',
+      portraitAsset: 'songhao',
       identity: '负责图表与实验批次说明。',
       relationToCase: '报告的技术附件由她维护。',
       nightAction: '08:12-08:22 在工位持续处理附件并在群里更新。',
@@ -57,6 +71,7 @@ export const case001: CaseFile = {
       id: 'c1-s3',
       name: '顾衡',
       role: '设备工程师',
+      portraitAsset: 'guwen',
       identity: '负责机房和冷链设备巡检。',
       relationToCase: '与报告内容关联较弱，掌握部分楼层通行。',
       nightAction: '在机房处理报警，08:20 后进入电梯厅。',
@@ -70,6 +85,7 @@ export const case001: CaseFile = {
       id: 'c1-h1',
       label: '会议室签到台',
       region: '会议室入口',
+      sceneAsset: 'main',
       description: '平板记录每次签到时间与设备编号。',
       discoveryText: '林澈首次签到时间为 08:22，晚于其“08:10 在场”口供。',
       clueIds: ['c1-c1'],
@@ -79,6 +95,7 @@ export const case001: CaseFile = {
       id: 'c1-h2',
       label: '走廊监控拼帧',
       region: '盲区前后两节点',
+      sceneAsset: 'hallway',
       description: '盲区前后摄像头时间轴可拼接。',
       discoveryText: '08:16 林澈携文件袋进入盲区，08:19 从资料室方向返回。',
       clueIds: ['c1-c2'],
@@ -88,6 +105,7 @@ export const case001: CaseFile = {
       id: 'c1-h3',
       label: '资料室门把与碎纸机',
       region: '资料室内外',
+      sceneAsset: 'archive',
       description: '门把纤维、碎纸屑均可送检。',
       discoveryText: '发现与林澈外套同源纤维，以及报告封面同批纸纤维。',
       clueIds: ['c1-c3', 'c1-c4'],
@@ -97,6 +115,7 @@ export const case001: CaseFile = {
       id: 'c1-h4',
       label: '协作聊天与工位终端',
       region: '工位区',
+      sceneAsset: 'main',
       description: '聊天记录与终端键鼠活动可交叉验证。',
       discoveryText: '宋遥 08:18 追问“原件谁拿走了”，终端日志显示其在席。',
       clueIds: ['c1-c5'],
@@ -106,6 +125,7 @@ export const case001: CaseFile = {
       id: 'c1-h5',
       label: '电梯与门禁联动',
       region: '楼层联动日志',
+      sceneAsset: 'hallway',
       description: '可还原工牌跨层闭环路径。',
       discoveryText: '08:18-08:21 林澈工牌形成“会议层→资料室→会议层”闭环。',
       clueIds: ['c1-c6'],

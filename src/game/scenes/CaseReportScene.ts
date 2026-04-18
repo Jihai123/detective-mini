@@ -3,7 +3,7 @@ import { getCaseById } from '../../data/cases';
 import type { CaseResult } from '../../domain/types';
 import { clearCaseSession, getCaseSession } from '../systems/InvestigationSessionStore';
 import { updateCaseCompletion } from '../systems/ProgressStore';
-import { drawPanel, drawWorkbenchBackground, fadeInScene, makeButton } from './ui';
+import { drawCaseSceneBackground, drawPanel, fadeInScene, makeButton } from './ui';
 
 type SceneData = { caseId: string; result: CaseResult };
 
@@ -26,7 +26,7 @@ export class CaseReportScene extends Phaser.Scene {
     const save = updateCaseCompletion(caseFile.id, this.payload.result.totalScore, this.payload.result.elapsedSeconds, this.payload.result.rating);
     const progress = save.caseProgress[caseFile.id];
 
-    drawWorkbenchBackground(this);
+    drawCaseSceneBackground(this, caseFile, 'archive');
     fadeInScene(this);
 
     drawPanel(this, 48, 44, 420, 810, '结案评级');
