@@ -1,6 +1,6 @@
-﻿import type { CaseFile } from '../../domain/types';
-import { tutorialCase } from './tutorial';
+import type { CaseFile } from '../../domain/types';
 import { case001 } from './case-001';
+import { tutorialCase } from './tutorial';
 
 export const CASES: CaseFile[] = [tutorialCase, case001];
 

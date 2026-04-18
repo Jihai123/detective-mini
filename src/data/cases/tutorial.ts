@@ -1,69 +1,106 @@
-﻿import type { CaseFile } from '../../domain/types';
+import type { CaseFile } from '../../domain/types';
 
 export const tutorialCase: CaseFile = {
   id: 'tutorial-001',
-  title: '鏁欑▼妗?,
+  title: '教学案：消失的评审表',
   difficulty: 'tutorial',
-  intro: '杩欐槸鏁欑▼妗堛€?,
-  objective: '鎵惧嚭姝ｇ‘绛旀銆?,
+  intro:
+    '评审会议开始前，唯一一份纸质评审表不见了。你需要在最短时间内识别关键谎言并给出结论。',
+  objective: '找出拿走评审表的人、关键谎言，以及其作案方式。',
   suspects: [
     {
-      id: 's1',
-      name: '鍛ㄥ矚',
-      role: '琛屾斂鍔╃悊',
-      profile: '璐熻矗鏁寸悊鏉愭枡銆?,
-      motive: '鏈夋帴瑙︽枃浠舵満浼氥€?
+      id: 't-s1',
+      name: '周岚',
+      role: '行政助理',
+      profile: '负责会议资料整理，熟悉档案柜与会场流程。',
+      motive: '担心评审结果对自己不利，想拖延流程。'
+    },
+    {
+      id: 't-s2',
+      name: '陈序',
+      role: '产品经理',
+      profile: '会前一直在准备汇报文稿。',
+      motive: '希望会议尽快开始，动机较弱。'
     }
   ],
   clues: [
     {
-      id: 'c1',
+      id: 't-c1',
       type: 'testimony',
-      title: '鍛ㄥ矚鐨勮瘉璇?,
-      content: '鎴戞病鏈夎繘鍔炲叕瀹ゃ€?,
-      relatedSuspectIds: ['s1'],
+      title: '周岚证词',
+      content: '我一直在茶水间整理纸杯，没进过会议室。',
+      relatedSuspectIds: ['t-s1'],
       unlockMode: 'initial',
       importance: 'high'
+    },
+    {
+      id: 't-c2',
+      type: 'digital',
+      title: '门禁记录',
+      content: '07:08 周岚门卡刷开会议室门，停留 2 分钟。',
+      relatedSuspectIds: ['t-s1'],
+      unlockMode: 'initial',
+      importance: 'high'
+    },
+    {
+      id: 't-c3',
+      type: 'physical',
+      title: '茶水间垃圾桶',
+      content: '发现被揉皱的评审表封页，页角有“会后归档”字样。',
+      relatedSuspectIds: ['t-s1'],
+      unlockMode: 'extra',
+      importance: 'medium'
     }
   ],
   timelineSlots: [
     {
-      id: 't1',
-      label: '7:10',
-      options: ['鍔炲叕瀹?, '璧板粖', '鏈煡']
+      id: 't-t1',
+      label: '07:05-07:10',
+      options: ['会议室', '茶水间', '走廊']
     }
   ],
-  extraClueBudget: 0,
+  extraClueBudget: 1,
   questions: [
     {
       id: 'q1',
-      prompt: '鏄皝鎷胯蛋浜嗚瘎瀹¤〃锛?,
+      prompt: '是谁拿走了评审表？',
       type: 'single',
-      options: [{ label: '鍛ㄥ矚', value: 's1' }]
+      options: [
+        { label: '周岚', value: 't-s1' },
+        { label: '陈序', value: 't-s2' }
+      ]
     },
     {
       id: 'q2',
-      prompt: '鍝潯璇佽瘝鏄叧閿皫瑷€锛?,
+      prompt: '哪条证据揭示了关键谎言？',
       type: 'single',
-      options: [{ label: '鍛ㄥ矚鐨勮瘉璇?, value: 'c1' }]
+      options: [
+        { label: '周岚证词', value: 't-c1' },
+        { label: '门禁记录', value: 't-c2' },
+        { label: '茶水间垃圾桶', value: 't-c3' }
+      ]
     },
     {
       id: 'q3',
-      prompt: '璇勫琛ㄦ槸濡備綍琚甫璧扮殑锛?,
+      prompt: '请简述作案方式。',
       type: 'text',
-      acceptableAnswers: ['甯﹁蛋']
+      acceptableAnswers: ['提前进入会议室拿走评审表', '拿走评审表并藏到茶水间']
     }
   ],
   solution: {
-    culpritId: 's1',
-    keyLieClueId: 'c1',
-    methodAnswer: '甯﹁蛋',
-    methodKeywords: ['甯﹁蛋'],
-    reasoning: ['杩欐槸涓€涓渶灏忔祴璇曟渚嬨€?]
+    culpritId: 't-s1',
+    keyLieClueId: 't-c2',
+    methodAnswer: '提前进入会议室拿走评审表并暂时藏匿',
+    methodKeywords: ['提前', '会议室', '拿走', '评审表', '藏'],
+    reasoning: [
+      '门禁记录直接否定了“没进会议室”的说法。',
+      '周岚具备接触资料与接近会议室的便利条件。',
+      '额外线索显示评审表曾被临时处理并转移。'
+    ]
   },
   hints: [
-    { level: 1, text: '鐪嬭瘉璇嶃€? },
-    { level: 2, text: '瀵规瘮绾跨储銆? },
-    { level: 3, text: '绛旀灏辨槸鍛ㄥ矚銆? }
+    { level: 1, text: '先核对嫌疑人的口供与客观记录是否一致。' },
+    { level: 2, text: '重点关注“谁有机会单独接触会议室资料”。' },
+    { level: 3, text: '门禁记录是本案最关键的突破口。' }
   ]
 };
