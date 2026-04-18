@@ -2,140 +2,174 @@ import type { CaseFile } from '../../domain/types';
 
 export const tutorialCase: CaseFile = {
   id: 'tutorial-001',
-  title: '教学案：评审室里少了一页结论',
+  title: '教学档案：评审室失页事件',
   difficulty: 'tutorial',
-  intro:
-    '周一早晨 07:30，启明设计院 A 栋 11 层评审室。城市更新项目要在 08:00 对外汇报，纸质评审表最后一页却在会前消失，会议被迫中断。',
-  objective: '找出拿走评审结论页的人、识别关键谎言，并说明她如何转移文件。',
-  location: '启明设计院 A 栋 11 层评审室与茶水间',
-  incidentTime: '07:20 - 07:40',
-  background:
-    '这份评审表只打印一份，包含项目去留意见。若在会上被读出，行政助理周岚负责的资料归档失误将被追责。两名当事人都声称自己忙于会前准备，没人碰过资料夹。',
+  archiveSubtitle: 'A-11 评审流程异常 / 纸质结论页失踪',
+  archiveMeta: {
+    type: '会议资料失窃',
+    location: '启明设计院 A 栋 11 层',
+    incidentWindow: '2026-03-11 07:20 - 07:40',
+    threatLevel: 'low'
+  },
+  briefing: {
+    intro:
+      '周一 08:00 的城市更新终审前，唯一纸质结论页在会前 20 分钟消失。会议无法开始，外部评委已在路上。',
+    objective: '重建会前 07:20-07:40 的行动链，确认谁转移了结论页、为何撒谎，以及如何完成转移。',
+    sections: [
+      {
+        headline: '事件背景',
+        body: '评审结论页决定项目是否进入签约阶段。若结论页缺失，项目将延期至少两周。'
+      },
+      {
+        headline: '调查重点',
+        body: '核对口供与门禁、监控、物证是否一致；优先锁定“独处窗口”。'
+      },
+      {
+        headline: '涉事关系概览',
+        body: '周岚负责纸质资料保管；陈序负责汇报；两人都急于按时开会。'
+      }
+    ]
+  },
   suspects: [
     {
       id: 't-s1',
       name: '周岚',
       role: '行政助理',
-      profile: '负责会议资料收发，熟悉评审室钥匙和归档流程。',
-      relation: '直接保管纸质资料，是最后一位接触资料夹的人。',
-      alibi: '称 07:25 后一直在茶水间摆放纸杯，没有再进评审室。',
-      suspiciousPoint: '门禁显示她在 07:28 曾独自进出评审室 2 分钟。',
-      motive: '担心结论页暴露自己前一晚漏盖章，想争取补救时间。'
+      identity: '负责会务、门禁借卡、评审资料封装。',
+      relationToCase: '最后接触资料夹的人。',
+      nightAction: '07:25 后往返评审室与茶水间，称自己“全程在摆纸杯”。',
+      suspiciousPoint: '门禁显示 07:28 单独进入评审室两分钟。',
+      motive: '若结论页被当众宣读，她前一晚漏盖章会被追责。',
+      relations: ['与陈序会前多次争执“是否按时开会”', '可独立接触评审室门禁']
     },
     {
       id: 't-s2',
       name: '陈序',
       role: '产品经理',
-      profile: '负责 08:00 的现场汇报，手里有电子备份。',
-      relation: '需要结论页开场，但并不负责纸质原件。',
-      alibi: '称自己一直在走廊与客户通话，07:30 才进入评审室。',
-      suspiciousPoint: '曾催促会务“快点开会”，态度急躁。',
-      motive: '希望按时开会，动机偏弱。'
+      identity: '负责面对外部评委的最终陈述。',
+      relationToCase: '需要结论页开场，但不直接保管原件。',
+      nightAction: '在走廊与客户通话，反复催促“马上开会”。',
+      suspiciousPoint: '催开会态度激进，疑似回避追问。',
+      motive: '项目延期会影响季度奖金，但缺乏独处操作时间。',
+      relations: ['与周岚因流程拖延发生口角', '依赖行政准备纸质材料']
+    }
+  ],
+  hotspots: [
+    {
+      id: 't-h1',
+      label: '评审室桌面',
+      region: '中央会议桌',
+      description: '蓝色资料夹放在桌角，标签胶有新撕痕。',
+      discoveryText: '资料夹中间页顺序完整，唯独结论页缺口整齐，像被预先抽走。',
+      clueIds: ['t-c1'],
+      conversationIds: []
+    },
+    {
+      id: 't-h2',
+      label: '门禁终端',
+      region: '评审室门外',
+      description: '刷卡终端保留最近 30 分钟记录。',
+      discoveryText: '07:28-07:30 仅周岚工牌触发开门与离开。',
+      clueIds: ['t-c2'],
+      conversationIds: ['t-talk-1']
+    },
+    {
+      id: 't-h3',
+      label: '走廊监控节点',
+      region: '茶水间拐角',
+      description: '监控每 5 秒一帧，能看到手持物体轮廓。',
+      discoveryText: '07:29 周岚夹着深蓝资料板离开评审室，直接进茶水间。',
+      clueIds: ['t-c3'],
+      conversationIds: ['t-talk-2']
+    },
+    {
+      id: 't-h4',
+      label: '茶水间回收箱',
+      region: '水槽旁',
+      description: '回收箱上层有刚揉皱又摊开的纸张。',
+      discoveryText: '找到结论页复印件和蓝色纤维，像临时转移失败后回收。',
+      clueIds: ['t-c4'],
+      conversationIds: [],
+      isOptional: true
+    }
+  ],
+  conversations: [
+    {
+      id: 't-talk-1',
+      suspectId: 't-s1',
+      title: '周岚：门禁追问',
+      unlockedBy: 't-h2',
+      lines: ['“我只是回去确认投影线，真的没动资料。”', '“07:28 那次？就两分钟，来不及做别的。”']
+    },
+    {
+      id: 't-talk-2',
+      suspectId: 't-s2',
+      title: '陈序：走廊对话',
+      unlockedBy: 't-h3',
+      lines: ['“我在电话里催客户别迟到，不可能进评审室。”', '“周岚出来时手里确实夹着板子，我以为是签到表。”']
     }
   ],
   clues: [
     {
       id: 't-c1',
-      type: 'testimony',
-      title: '周岚口供记录',
-      content: '“我从 07:25 到开会前都在茶水间，没再进评审室。”',
+      category: 'record',
+      title: '资料夹缺页痕迹',
+      summary: '结论页被完整抽离，非意外掉页。',
+      detail: '缺页断口平直，夹内顺序未乱，显示操作者熟悉资料结构。',
       relatedSuspectIds: ['t-s1'],
-      unlockMode: 'initial',
-      importance: 'high'
+      discoveredBy: 't-h1',
+      keyEvidenceCandidate: true
     },
     {
       id: 't-c2',
-      type: 'digital',
+      category: 'record',
       title: '评审室门禁日志',
-      content: '07:28 周岚工牌刷开评审室门，07:30 再次刷卡离开，期间无他人进入。',
+      summary: '07:28-07:30 仅周岚进出评审室。',
+      detail: '该时间段无陪同人员，无其他工牌触发门禁，直接冲突其“未再进入”口供。',
       relatedSuspectIds: ['t-s1'],
-      unlockMode: 'initial',
-      importance: 'high'
+      discoveredBy: 't-h2',
+      keyEvidenceCandidate: true
     },
     {
       id: 't-c3',
-      type: 'physical',
-      title: '茶水间回收桶',
-      content: '回收桶最上层有被揉皱又展开的结论页复印件，边缘沾到同款蓝色文件夹纤维。',
+      category: 'surveillance',
+      title: '走廊监控摘要',
+      summary: '周岚带资料板离开评审室后进入茶水间。',
+      detail: '画面时间戳 07:29:11，手持物与评审资料板尺寸一致。',
       relatedSuspectIds: ['t-s1'],
-      unlockMode: 'extra',
-      importance: 'medium'
+      discoveredBy: 't-h3',
+      keyEvidenceCandidate: true
     },
     {
       id: 't-c4',
-      type: 'timeline',
-      title: '走廊监控截帧',
-      content: '07:29 周岚从评审室出来时手里夹着深蓝色资料板，之后直接进入茶水间。',
+      category: 'physical',
+      title: '回收箱复印件与纤维',
+      summary: '找到结论页复印件与文件夹同源纤维。',
+      detail: '纸面有二次折叠痕，像短时藏匿后处理失败。',
       relatedSuspectIds: ['t-s1'],
-      unlockMode: 'initial',
-      importance: 'medium'
+      discoveredBy: 't-h4',
+      keyEvidenceCandidate: true
     }
   ],
   timelineSlots: [
-    {
-      id: 't-t1',
-      label: '07:25-07:30',
-      options: ['评审室', '茶水间', '走廊']
-    },
-    {
-      id: 't-t2',
-      label: '07:30-07:35',
-      options: ['评审室', '茶水间', '走廊']
-    }
+    { id: 't1', label: '07:25-07:30', options: ['评审室', '茶水间', '走廊'] },
+    { id: 't2', label: '07:30-07:35', options: ['评审室', '茶水间', '走廊'] }
   ],
-  extraClueBudget: 1,
-  questions: [
-    {
-      id: 'q1',
-      prompt: '谁转移了评审结论页？',
-      type: 'single',
-      options: [
-        { label: '周岚', value: 't-s1' },
-        { label: '陈序', value: 't-s2' }
-      ]
-    },
-    {
-      id: 'q2',
-      prompt: '哪条线索直接击破关键谎言？',
-      type: 'single',
-      options: [
-        { label: '周岚口供记录', value: 't-c1' },
-        { label: '评审室门禁日志', value: 't-c2' },
-        { label: '茶水间回收桶', value: 't-c3' },
-        { label: '走廊监控截帧', value: 't-c4' }
-      ]
-    },
-    {
-      id: 'q3',
-      prompt: '请简述作案方式。',
-      type: 'text',
-      acceptableAnswers: ['先进评审室抽走结论页再藏到茶水间', '借短时间回到评审室取走纸张后转移']
-    }
-  ],
+  hints: ['优先找出谁拥有“无人同在”的两分钟。', '把口供与门禁时间逐字比对。', '监控负责补全转移路径。'],
   solution: {
     culpritId: 't-s1',
     keyLieClueId: 't-c2',
-    methodAnswer: '周岚趁会前空档回评审室抽走结论页并在茶水间暂时藏匿',
-    methodKeywords: ['空档', '评审室', '抽走', '结论页', '茶水间'],
+    methodKeywords: ['两分钟', '评审室', '抽走', '茶水间', '转移'],
+    evidenceChain: ['t-c2', 't-c3', 't-c4'],
+    canonicalTimeline: ['07:28 周岚独自进评审室', '07:29 周岚携资料板离开', '07:30 进入茶水间处理文件'],
+    truthSegments: [
+      '周岚为掩盖漏盖章风险，在会前窗口回评审室抽走结论页。',
+      '她利用茶水间短时藏匿并尝试处理痕迹，导致复印件和纤维残留。',
+      '陈序催会虽激进，但没有形成完整机会链。'
+    ],
     expectedTimeline: {
-      't-s1': {
-        't-t1': '评审室',
-        't-t2': '茶水间'
-      },
-      't-s2': {
-        't-t1': '走廊',
-        't-t2': '走廊'
-      }
-    },
-    reasoning: [
-      '门禁日志与口供发生直接冲突，周岚并非全程在茶水间。',
-      '监控截帧显示她离开评审室后马上进入茶水间，具备转移文件路径。',
-      '回收桶中的复印件说明文件被临时处理过，符合“先拿走再藏匿”的行为逻辑。'
-    ]
-  },
-  hints: [
-    { level: 1, text: '先核对“她说自己在哪”与门禁记录是否一致。' },
-    { level: 2, text: '会前 07:28 这两分钟是本案唯一无人同在的窗口。' },
-    { level: 3, text: '关键线索在门禁日志，额外线索只负责补强路径。' }
-  ]
+      't-s1': { t1: '评审室', t2: '茶水间' },
+      't-s2': { t1: '走廊', t2: '走廊' }
+    }
+  }
 };
