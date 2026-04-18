@@ -1,9 +1,12 @@
-﻿import type { CaseFile, HintTier } from '../../domain/types';
+import type { CaseFile, HintTier } from '../../domain/types';
 
 export class HintSystem {
   private usedLevels: number[] = [];
+  private caseFile: CaseFile;
 
-  constructor(private caseFile: CaseFile) {}
+  constructor(caseFile: CaseFile) {
+    this.caseFile = caseFile;
+  }
 
   public canUseHint(): boolean {
     return this.usedLevels.length < this.caseFile.hints.length;
