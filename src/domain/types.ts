@@ -1,28 +1,65 @@
 export type CaseDifficulty = 'tutorial' | 'normal' | 'hard';
 
+export type ArchiveMeta = {
+  type: string;
+  location: string;
+  incidentWindow: string;
+  threatLevel: 'low' | 'medium' | 'high';
+};
+
+export type BriefingSection = {
+  headline: string;
+  body: string;
+};
+
+export type Briefing = {
+  intro: string;
+  objective: string;
+  sections: BriefingSection[];
+};
+
 export type Suspect = {
   id: string;
   name: string;
   role: string;
-  profile: string;
-  motive: string;
-  relation: string;
-  alibi: string;
+  identity: string;
+  relationToCase: string;
+  nightAction: string;
   suspiciousPoint: string;
+  motive: string;
+  relations: string[];
 };
 
-export type ClueType = 'testimony' | 'physical' | 'digital' | 'timeline' | 'extra';
-export type ClueUnlockMode = 'initial' | 'extra';
-export type ClueImportance = 'low' | 'medium' | 'high';
-
-export type Clue = {
+export type ConversationSnippet = {
   id: string;
-  type: ClueType;
+  suspectId: string;
   title: string;
-  content: string;
+  lines: string[];
+  unlockedBy: string;
+};
+
+export type EvidenceCategory = 'testimony' | 'physical' | 'record' | 'surveillance' | 'extra';
+
+export type EvidenceClue = {
+  id: string;
+  category: EvidenceCategory;
+  title: string;
+  summary: string;
+  detail: string;
   relatedSuspectIds: string[];
-  unlockMode: ClueUnlockMode;
-  importance: ClueImportance;
+  discoveredBy: string;
+  keyEvidenceCandidate: boolean;
+};
+
+export type InvestigationHotspot = {
+  id: string;
+  label: string;
+  region: string;
+  description: string;
+  discoveryText: string;
+  clueIds: string[];
+  conversationIds: string[];
+  isOptional?: boolean;
 };
 
 export type TimelineSlot = {
@@ -31,78 +68,30 @@ export type TimelineSlot = {
   options: string[];
 };
 
-export type SingleQuestion = {
-  id: string;
-  prompt: string;
-  type: 'single';
-  options: Array<{ label: string; value: string }>;
-};
-
-export type TextQuestion = {
-  id: string;
-  prompt: string;
-  type: 'text';
-  acceptableAnswers: string[];
-};
-
-export type CaseQuestion = SingleQuestion | TextQuestion;
-
-export type HintTier = {
-  level: number;
-  text: string;
-};
-
 export type CaseSolution = {
   culpritId: string;
   keyLieClueId: string;
-  methodAnswer: string;
   methodKeywords: string[];
-  reasoning: string[];
-  expectedTimeline?: Record<string, Record<string, string>>;
+  evidenceChain: string[];
+  truthSegments: string[];
+  expectedTimeline: Record<string, Record<string, string>>;
+  canonicalTimeline: string[];
 };
 
 export type CaseFile = {
   id: string;
   title: string;
   difficulty: CaseDifficulty;
-  intro: string;
-  objective: string;
-  location: string;
-  incidentTime: string;
-  background: string;
+  archiveMeta: ArchiveMeta;
+  archiveSubtitle: string;
+  briefing: Briefing;
   suspects: Suspect[];
-  clues: Clue[];
+  hotspots: InvestigationHotspot[];
+  conversations: ConversationSnippet[];
+  clues: EvidenceClue[];
   timelineSlots: TimelineSlot[];
-  extraClueBudget: number;
-  questions: CaseQuestion[];
   solution: CaseSolution;
-  hints: HintTier[];
-};
-
-export type PlayerAnswers = {
-  culpritId?: string;
-  keyLieClueId?: string;
-  methodAnswer?: string;
-  timelineSelections?: Record<string, Record<string, string>>;
-};
-
-export type CaseResult = {
-  totalScore: number;
-  rating: 'S' | 'A' | 'B' | 'C' | 'D';
-  breakdown: {
-    culprit: number;
-    lie: number;
-    method: number;
-    timeBonus: number;
-    hintBonus: number;
-    extraClueBonus: number;
-  };
-  isPerfect: boolean;
-  correct: {
-    culprit: boolean;
-    lie: boolean;
-    method: boolean;
-  };
+  hints: string[];
 };
 
 export type CaseProgress = {
@@ -110,6 +99,8 @@ export type CaseProgress = {
   highestScore: number;
   fastestSeconds: number | null;
   unlocked: boolean;
+  highestRating: 'S' | 'A' | 'B' | 'C' | 'D' | null;
+  completionCount: number;
 };
 
 export type GameSettings = {
@@ -117,7 +108,41 @@ export type GameSettings = {
 };
 
 export type SaveData = {
-  version: 1;
+  version: 2;
   caseProgress: Record<string, CaseProgress>;
   settings: GameSettings;
+};
+
+export type InvestigationState = {
+  caseId: string;
+  startedAt: number;
+  discoveredHotspots: Set<string>;
+  discoveredClues: Set<string>;
+  unlockedConversations: Set<string>;
+  selectedKeyEvidence: Set<string>;
+  culpritId?: string;
+  keyLieClueId?: string;
+  methodTheory: string;
+  timelineSelections: Record<string, Record<string, string>>;
+};
+
+export type CaseResult = {
+  totalScore: number;
+  rating: 'S' | 'A' | 'B' | 'C' | 'D';
+  elapsedSeconds: number;
+  timelineAccuracy: number;
+  timelineCompletion: number;
+  correct: {
+    culprit: boolean;
+    lie: boolean;
+    method: boolean;
+  };
+  breakdown: {
+    culprit: number;
+    lie: number;
+    method: number;
+    keyEvidence: number;
+    timeline: number;
+    efficiency: number;
+  };
 };

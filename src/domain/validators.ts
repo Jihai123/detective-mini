@@ -3,22 +3,30 @@ import type { CaseFile } from './types';
 export function validateCaseFile(caseFile: CaseFile): string[] {
   const errors: string[] = [];
 
-  if (!caseFile.id.trim()) {
-    errors.push('case.id 不能为空');
+  if (!caseFile.id.trim()) errors.push('case.id 不能为空');
+  if (!caseFile.title.trim()) errors.push(`${caseFile.id}: title 不能为空`);
+  if (caseFile.suspects.length === 0) errors.push(`${caseFile.id}: suspects 不能为空`);
+  if (caseFile.hotspots.length === 0) errors.push(`${caseFile.id}: hotspots 不能为空`);
+  if (caseFile.clues.length === 0) errors.push(`${caseFile.id}: clues 不能为空`);
+  if (caseFile.timelineSlots.length === 0) errors.push(`${caseFile.id}: timelineSlots 不能为空`);
+
+  const suspectIds = new Set(caseFile.suspects.map((s) => s.id));
+  if (!suspectIds.has(caseFile.solution.culpritId)) {
+    errors.push(`${caseFile.id}: solution.culpritId 未指向有效嫌疑人`);
   }
 
-  if (caseFile.suspects.length === 0) {
-    errors.push(`${caseFile.id}: suspects 不能为空`);
+  const clueIds = new Set(caseFile.clues.map((c) => c.id));
+  if (!clueIds.has(caseFile.solution.keyLieClueId)) {
+    errors.push(`${caseFile.id}: solution.keyLieClueId 未指向有效线索`);
   }
 
-  if (caseFile.clues.length === 0) {
-    errors.push(`${caseFile.id}: clues 不能为空`);
-  }
-
-  const questionIds = new Set(caseFile.questions.map((q) => q.id));
-  if (!questionIds.has('q1') || !questionIds.has('q2') || !questionIds.has('q3')) {
-    errors.push(`${caseFile.id}: questions 必须包含 q1/q2/q3`);
-  }
+  caseFile.hotspots.forEach((hotspot) => {
+    hotspot.clueIds.forEach((clueId) => {
+      if (!clueIds.has(clueId)) {
+        errors.push(`${caseFile.id}: hotspot ${hotspot.id} 引用了不存在的 clue ${clueId}`);
+      }
+    });
+  });
 
   return errors;
 }

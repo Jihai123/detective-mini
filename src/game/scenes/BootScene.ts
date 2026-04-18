@@ -7,6 +7,11 @@ export class BootScene extends Phaser.Scene {
     super('BootScene');
   }
 
+  preload() {
+    this.load.image('bg-tutorial-001', '/case-art/tutorial-bg.svg');
+    this.load.image('bg-case-001', '/case-art/case001-bg.svg');
+  }
+
   create() {
     const errors = CASES.flatMap((caseFile) => validateCaseFile(caseFile));
 
@@ -20,6 +25,6 @@ export class BootScene extends Phaser.Scene {
       return;
     }
 
-    this.scene.start('MenuScene');
+    this.scene.start('ArchiveScene');
   }
 }

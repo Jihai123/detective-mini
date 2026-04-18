@@ -1,132 +1,95 @@
-﻿import type { CaseFile, PlayerAnswers, CaseResult } from '../../domain/types';
+import type { CaseFile, CaseResult, InvestigationState } from '../../domain/types';
 
 type ScoreInput = {
   caseFile: CaseFile;
-  answers: PlayerAnswers;
-  usedHints: number;
-  usedExtraClues: number;
-  elapsedSeconds: number;
+  state: InvestigationState;
 };
 
 export function evaluateCase(input: ScoreInput): CaseResult {
-  const { caseFile, answers, usedHints, usedExtraClues, elapsedSeconds } = input;
+  const { caseFile, state } = input;
+  const elapsedSeconds = Math.max(1, Math.floor((Date.now() - state.startedAt) / 1000));
 
-  const culpritCorrect = answers.culpritId === caseFile.solution.culpritId;
-  const lieCorrect = answers.keyLieClueId === caseFile.solution.keyLieClueId;
-  const methodCorrect = isMethodAnswerCorrect(
-    answers.methodAnswer ?? '',
-    caseFile.solution.methodKeywords,
-    caseFile.questions
+  const culpritCorrect = state.culpritId === caseFile.solution.culpritId;
+  const lieCorrect = state.keyLieClueId === caseFile.solution.keyLieClueId;
+  const methodCorrect = isMethodCorrect(state.methodTheory, caseFile.solution.methodKeywords);
+
+  const totalCells = caseFile.timelineSlots.length * caseFile.suspects.length;
+  const filledCells = caseFile.suspects.reduce(
+    (sum, suspect) => sum + Object.keys(state.timelineSelections[suspect.id] ?? {}).length,
+    0
   );
+  const completion = totalCells === 0 ? 0 : filledCells / totalCells;
 
-  const culpritScore = culpritCorrect ? 40 : 0;
+  let correctCells = 0;
+  caseFile.suspects.forEach((suspect) => {
+    caseFile.timelineSlots.forEach((slot) => {
+      const actual = state.timelineSelections[suspect.id]?.[slot.id];
+      const expected = caseFile.solution.expectedTimeline[suspect.id]?.[slot.id];
+      if (actual && expected && actual === expected) correctCells += 1;
+    });
+  });
+  const accuracy = totalCells === 0 ? 0 : correctCells / totalCells;
+
+  const chainHits = caseFile.solution.evidenceChain.filter((id) => state.selectedKeyEvidence.has(id)).length;
+  const keyEvidenceScore = Math.round((chainHits / Math.max(1, caseFile.solution.evidenceChain.length)) * 15);
+
+  const culpritScore = culpritCorrect ? 30 : 0;
   const lieScore = lieCorrect ? 20 : 0;
   const methodScore = methodCorrect ? 20 : 0;
+  const timelineScore = Math.round(accuracy * 10 + completion * 5);
+  const efficiency = getEfficiencyBonus(caseFile.difficulty, elapsedSeconds);
 
-  const timeBonus = calcTimeBonus(caseFile.difficulty, elapsedSeconds);
-  const hintBonus = calcHintBonus(usedHints);
-  const extraClueBonus = calcExtraClueBonus(caseFile.extraClueBudget, usedExtraClues);
-
-  const totalScore =
-    culpritScore +
-    lieScore +
-    methodScore +
-    timeBonus +
-    hintBonus +
-    extraClueBonus;
+  const totalScore = culpritScore + lieScore + methodScore + keyEvidenceScore + timelineScore + efficiency;
 
   return {
     totalScore,
     rating: getRating(totalScore),
-    breakdown: {
-      culprit: culpritScore,
-      lie: lieScore,
-      method: methodScore,
-      timeBonus,
-      hintBonus,
-      extraClueBonus
-    },
-    isPerfect: culpritCorrect && lieCorrect && methodCorrect && usedHints === 0,
+    elapsedSeconds,
+    timelineAccuracy: accuracy,
+    timelineCompletion: completion,
     correct: {
       culprit: culpritCorrect,
       lie: lieCorrect,
       method: methodCorrect
+    },
+    breakdown: {
+      culprit: culpritScore,
+      lie: lieScore,
+      method: methodScore,
+      keyEvidence: keyEvidenceScore,
+      timeline: timelineScore,
+      efficiency
     }
   };
 }
 
-function isMethodAnswerCorrect(
-  answer: string,
-  keywords: string[],
-  questions: CaseFile['questions']
-): boolean {
-  const normalized = normalizeText(answer);
-  const hitCount = keywords.filter((k) => normalized.includes(normalizeText(k))).length;
-
-  if (hitCount >= Math.min(3, keywords.length)) {
-    return true;
-  }
-
-  const textQuestion = questions.find((q) => q.type === 'text');
-  if (textQuestion && textQuestion.type === 'text') {
-    return textQuestion.acceptableAnswers.some((candidate) =>
-      fuzzyIncludes(normalized, normalizeText(candidate))
-    );
-  }
-
-  return false;
+function isMethodCorrect(answer: string, keywords: string[]): boolean {
+  const normalized = answer.trim().toLowerCase();
+  if (!normalized) return false;
+  const hits = keywords.filter((k) => normalized.includes(k.toLowerCase())).length;
+  return hits >= Math.min(3, keywords.length);
 }
 
-function calcTimeBonus(
-  difficulty: CaseFile['difficulty'],
-  elapsedSeconds: number
-): number {
+function getEfficiencyBonus(difficulty: CaseFile['difficulty'], elapsed: number): number {
   if (difficulty === 'tutorial') {
-    if (elapsedSeconds <= 180) return 10;
-    if (elapsedSeconds <= 300) return 7;
-    if (elapsedSeconds <= 420) return 4;
-    return 0;
+    if (elapsed <= 360) return 10;
+    if (elapsed <= 540) return 6;
+    return 2;
   }
-
   if (difficulty === 'normal') {
-    if (elapsedSeconds <= 360) return 10;
-    if (elapsedSeconds <= 540) return 7;
-    if (elapsedSeconds <= 720) return 4;
-    return 0;
+    if (elapsed <= 600) return 10;
+    if (elapsed <= 840) return 6;
+    return 2;
   }
-
-  if (elapsedSeconds <= 480) return 10;
-  if (elapsedSeconds <= 720) return 7;
-  if (elapsedSeconds <= 900) return 4;
-  return 0;
-}
-
-function calcHintBonus(usedHints: number): number {
-  if (usedHints <= 0) return 5;
-  if (usedHints === 1) return 3;
-  if (usedHints === 2) return 1;
-  return 0;
-}
-
-function calcExtraClueBonus(maxBudget: number, usedExtraClues: number): number {
-  if (usedExtraClues <= 0) return 5;
-  if (usedExtraClues < maxBudget) return 3;
-  if (usedExtraClues === maxBudget) return 1;
-  return 0;
+  if (elapsed <= 900) return 10;
+  if (elapsed <= 1200) return 6;
+  return 2;
 }
 
 function getRating(score: number): 'S' | 'A' | 'B' | 'C' | 'D' {
   if (score >= 90) return 'S';
-  if (score >= 80) return 'A';
-  if (score >= 70) return 'B';
-  if (score >= 60) return 'C';
+  if (score >= 78) return 'A';
+  if (score >= 66) return 'B';
+  if (score >= 54) return 'C';
   return 'D';
-}
-
-function normalizeText(input: string): string {
-  return input.trim().toLowerCase().replace(/\s+/g, '');
-}
-
-function fuzzyIncludes(input: string, target: string): boolean {
-  return input.includes(target) || target.includes(input);
 }
