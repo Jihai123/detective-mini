@@ -6,9 +6,12 @@ export type Suspect = {
   role: string;
   profile: string;
   motive: string;
+  relation: string;
+  alibi: string;
+  suspiciousPoint: string;
 };
 
-export type ClueType = 'testimony' | 'physical' | 'digital' | 'timeline';
+export type ClueType = 'testimony' | 'physical' | 'digital' | 'timeline' | 'extra';
 export type ClueUnlockMode = 'initial' | 'extra';
 export type ClueImportance = 'low' | 'medium' | 'high';
 
@@ -55,6 +58,7 @@ export type CaseSolution = {
   methodAnswer: string;
   methodKeywords: string[];
   reasoning: string[];
+  expectedTimeline?: Record<string, Record<string, string>>;
 };
 
 export type CaseFile = {
@@ -63,6 +67,9 @@ export type CaseFile = {
   difficulty: CaseDifficulty;
   intro: string;
   objective: string;
+  location: string;
+  incidentTime: string;
+  background: string;
   suspects: Suspect[];
   clues: Clue[];
   timelineSlots: TimelineSlot[];
@@ -76,6 +83,7 @@ export type PlayerAnswers = {
   culpritId?: string;
   keyLieClueId?: string;
   methodAnswer?: string;
+  timelineSelections?: Record<string, Record<string, string>>;
 };
 
 export type CaseResult = {
@@ -95,4 +103,21 @@ export type CaseResult = {
     lie: boolean;
     method: boolean;
   };
+};
+
+export type CaseProgress = {
+  completed: boolean;
+  highestScore: number;
+  fastestSeconds: number | null;
+  unlocked: boolean;
+};
+
+export type GameSettings = {
+  soundEnabled: boolean;
+};
+
+export type SaveData = {
+  version: 1;
+  caseProgress: Record<string, CaseProgress>;
+  settings: GameSettings;
 };
