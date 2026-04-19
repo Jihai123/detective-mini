@@ -23,6 +23,21 @@ import type {
 const SCREEN_SEQUENCE: Screen[] = ['archive', 'intro', 'investigation'];
 const ENGINE_EVENT_NAME = 'DETECTIVE_ENGINE_EVENT';
 const DEV_MODE = window.location.search.includes('dev=1');
+const PRIMARY_SCENE_BACKGROUNDS: Record<string, string> = {
+  review_room: '/assets/cases/case-001/scenes/review_room.jpg',
+  hallway_monitor: '/assets/cases/case-001/scenes/hallway_monitor.jpg',
+  pantry_bin: '/assets/cases/case-001/scenes/pantry_bin.jpg',
+};
+const CHARACTER_VISUAL_OVERRIDES: Record<string, { avatar: string; portrait: string }> = {
+  zhoulan: {
+    avatar: '/assets/cases/case-001/characters/zhoulan-avatar.png',
+    portrait: '/assets/cases/case-001/characters/zhoulan-neutral.png',
+  },
+  chenxu: {
+    avatar: '/assets/cases/case-001/characters/chenxu-avatar.png',
+    portrait: '/assets/cases/case-001/characters/chenxu-neutral.png',
+  },
+};
 
 export class StageOneApp {
   private readonly root: HTMLElement;
@@ -100,12 +115,18 @@ export class StageOneApp {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const scene = caseConfig.scenes.find((s) => s.id === this.state.currentSceneId) ?? caseConfig.scenes[0];
     const chars = scene.characterIds
-      .map((id) => caseConfig.characters.find((c) => c.id === id)?.avatar)
+      .map((id) => this.getCharacterVisual(caseConfig.characters.find((c) => c.id === id))?.avatar)
       .filter((v): v is string => Boolean(v));
     return Promise.all([
-      this.preloadImage(scene.background),
-      this.preloadImage('/assets/cases/case-001/scenes/meeting_room.jpg'),
-      this.preloadImage('/assets/cases/case-001/characters/linlan.png'),
+      this.preloadImage(this.getSceneBackground(scene.id, scene.background)),
+      this.preloadImage('/assets/cases/case-001/scenes/review_room.jpg'),
+      this.preloadImage('/assets/cases/case-001/scenes/hallway_monitor.jpg'),
+      this.preloadImage('/assets/cases/case-001/scenes/pantry_bin.jpg'),
+      this.preloadImage('/assets/cases/case-001/characters/zhoulan-avatar.png'),
+      this.preloadImage('/assets/cases/case-001/characters/zhoulan-neutral.png'),
+      this.preloadImage('/assets/cases/case-001/characters/chenxu-avatar.png'),
+      this.preloadImage('/assets/cases/case-001/characters/chenxu-neutral.png'),
+      this.preloadImage('/assets/ui/icons/icon-hotspot-target-marker.png'),
       this.preloadImage('/assets/ui/icons/new-dot.svg'),
       ...chars.map((src) => this.preloadImage(src)),
     ]);
@@ -114,8 +135,8 @@ export class StageOneApp {
   private preloadDeferredAssets(): void {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const urls = [
-      ...caseConfig.scenes.map((s) => s.background),
-      ...caseConfig.characters.map((c) => c.portrait),
+      ...caseConfig.scenes.map((s) => this.getSceneBackground(s.id, s.background)),
+      ...caseConfig.characters.map((c) => this.getCharacterVisual(c)?.portrait ?? c.portrait),
       ...caseConfig.clues.map((c) => c.image).filter((v): v is string => Boolean(v)),
     ];
     setTimeout(() => {
@@ -434,12 +455,12 @@ export class StageOneApp {
 
   private renderSceneTabs(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    return `<section class="scene-tabs">${caseConfig.scenes
+    return `<section class="scene-switcher"><p>调查区域切换</p><div class="scene-switcher-list">${caseConfig.scenes
       .map((scene) => {
         const unlocked = this.evalCondition(scene.unlockCondition).ok;
-        return `<button class="ghost-btn ${scene.id === this.state.currentSceneId ? 'is-active' : ''}" data-scene-id="${scene.id}" ${unlocked ? '' : 'disabled'}>${scene.label}</button>`;
+        return `<button class="area-btn ${scene.id === this.state.currentSceneId ? 'is-active' : ''}" data-scene-id="${scene.id}" ${unlocked ? '' : 'disabled'}>${scene.label}</button>`;
       })
-      .join('')}</section>`;
+      .join('')}</div></section>`;
   }
 
   private renderHotspots(): string {
@@ -447,7 +468,7 @@ export class StageOneApp {
     const scene = caseConfig.scenes.find((s) => s.id === this.state.currentSceneId);
     if (!scene) return '';
     return scene.hotspots
-      .map((hotspot) => `<button class="hotspot" data-hotspot-id="${hotspot.id}" style="left:${hotspot.position.x}%;top:${hotspot.position.y}%;"><span>${hotspot.label}</span></button>`)
+      .map((hotspot) => `<button class="hotspot" data-hotspot-id="${hotspot.id}" aria-label="${hotspot.label}" style="left:${hotspot.position.x}%;top:${hotspot.position.y}%;"><img src="/assets/ui/icons/icon-hotspot-target-marker.png" alt="" /><span>${hotspot.label}</span></button>`)
       .join('');
   }
 
@@ -458,6 +479,17 @@ export class StageOneApp {
     return { hasNew, label: hasNew ? '可追问 / 新内容' : '已读' };
   }
 
+  private getSceneBackground(sceneId: string, fallback: string): string {
+    return PRIMARY_SCENE_BACKGROUNDS[sceneId] ?? fallback;
+  }
+
+  private getCharacterVisual(character?: CharacterConfig): { avatar: string; portrait: string } | null {
+    if (!character) return null;
+    const override = CHARACTER_VISUAL_OVERRIDES[character.id];
+    if (override) return override;
+    return { avatar: character.avatar, portrait: character.portrait };
+  }
+
   private renderCharacterCards(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const scene = caseConfig.scenes.find((s) => s.id === this.state.currentSceneId);
@@ -466,7 +498,8 @@ export class StageOneApp {
     return `<section class="character-dock">${chars
       .map((character) => {
         const status = this.getCharacterCardStatus(character);
-        return `<button class="character-card" data-character-id="${character.id}"><img src="${character.avatar}" alt="${character.name}" onerror="this.src='/assets/cases/case-001/characters/linlan.png'" /><div><strong>${character.name}</strong><p>${character.role}</p><span class="card-status ${status.hasNew ? 'has-new' : ''}"><img src="/assets/ui/icons/new-dot.svg" alt="s" />${status.label}</span></div></button>`;
+        const visual = this.getCharacterVisual(character);
+        return `<button class="character-card" data-character-id="${character.id}"><img src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /><div><strong>${character.name}</strong><p>${character.role}</p><span class="card-status ${status.hasNew ? 'has-new' : ''}"><img src="/assets/ui/icons/new-dot.svg" alt="s" />${status.label}</span></div></button>`;
       })
       .join('')}</section>`;
   }
@@ -474,7 +507,7 @@ export class StageOneApp {
   private renderInspectOverlay(): string {
     if (this.state.overlay !== 'inspect' || !this.state.inspectCard) return '';
     const clue = this.state.inspectCard.clue;
-    return `<section class="overlay"><div class="inspect-card"><h3>现场观察卡</h3><p class="inspect-from">来源：${clue?.source ?? this.state.inspectCard.hotspotLabel}</p>${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='/assets/cases/case-001/scenes/meeting_room.jpg'" />` : ''}<h4>${clue?.title ?? '暂无新增线索'}</h4><p>${clue?.description ?? ''}</p><button data-close-overlay="true" class="primary-btn">继续调查</button></div></section>`;
+    return `<section class="overlay"><div class="inspect-card"><h3>现场观察卡</h3><p class="inspect-from">来源：${clue?.source ?? this.state.inspectCard.hotspotLabel}</p>${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='/assets/cases/case-001/scenes/review_room.jpg'" />` : ''}<h4>${clue?.title ?? '暂无新增线索'}</h4><p>${clue?.description ?? ''}</p><button data-close-overlay="true" class="primary-btn">继续调查</button></div></section>`;
   }
 
   private renderHintOverlay(): string {
@@ -484,7 +517,7 @@ export class StageOneApp {
 
   private renderOption(option: DialogueOption): string {
     const check = this.evalCondition(option.unlockCondition ?? option.condition);
-    return `<button class="dialogue-option ${check.ok ? '' : 'is-locked'}" data-dialogue-to="${option.to}" ${check.ok ? '' : 'disabled'}>${option.label}${!check.ok && DEV_MODE ? `<small>未解锁：${check.missing.join(' / ')}</small>` : ''}</button>`;
+    return `<button class="dialogue-option ${check.ok ? '' : 'is-locked'}" data-dialogue-to="${option.to}" ${check.ok ? '' : 'disabled'}><span class="option-arrow">›</span><span>${option.label}</span>${!check.ok && DEV_MODE ? `<small>未解锁：${check.missing.join(' / ')}</small>` : ''}</button>`;
   }
 
   private renderDialogueOverlay(): string {
@@ -495,7 +528,8 @@ export class StageOneApp {
     if (!node || !character) return '';
     const line = node.lines[this.state.dialogueState.lineIndex] ?? '';
     const end = this.state.dialogueState.lineIndex >= node.lines.length - 1;
-    return `<section class="overlay dialogue-overlay"><div class="dialogue-card emotion-${node.emotion}"><img class="portrait" src="${character.portrait}" alt="${character.name}" onerror="this.src='/assets/cases/case-001/characters/linlan.png'" /><div class="dialogue-main"><header><h3>${character.name}</h3><p>${character.role} · 情绪：${node.emotion}</p></header><article>${line}</article><div class="dialogue-controls">${end ? '<span>请选择追问：</span>' : '<button data-dialogue-next="true" class="ghost-btn">继续</button>'}<button data-close-overlay="true" class="ghost-btn">结束对话</button></div>${end ? `<div class="dialogue-options">${node.options.map((o) => this.renderOption(o)).join('')}</div>` : ''}</div></div></section>`;
+    const visual = this.getCharacterVisual(character);
+    return `<section class="overlay dialogue-overlay"><div class="dialogue-card emotion-${node.emotion}"><aside class="dialogue-actor"><img class="portrait" src="${visual?.portrait ?? character.portrait}" alt="${character.name}" onerror="this.src='${character.portrait}'" /><img class="avatar-badge" src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /></aside><div class="dialogue-main"><header><h3>${character.name}</h3><p>${character.role}</p></header><article>${line}</article><div class="dialogue-controls">${end ? '<span>选择追问动作</span>' : '<button data-dialogue-next="true" class="ghost-btn">继续施压</button>'}<button data-close-overlay="true" class="ghost-btn subtle-btn">结束对话</button></div>${end ? `<div class="dialogue-options">${node.options.slice(0, 3).map((o) => this.renderOption(o)).join('')}</div>` : ''}</div></div></section>`;
   }
 
   private renderConfrontationBody(): string {
@@ -579,6 +613,45 @@ export class StageOneApp {
     `;
   }
 
+  private getConfirmedAnomalies(): string[] {
+    const anomalies: string[] = [];
+    if (this.state.inventory.some((item) => item.id === 'clue-envelope-opened')) anomalies.push('封套存在二次开启痕迹');
+    if (this.state.inventory.some((item) => item.id === 'clue-doorlog-0728')) anomalies.push('已掌握 07:28 门禁进入记录');
+    if (this.state.inventory.some((item) => item.id === 'clue-camera-gap-0731')) anomalies.push('监控在 07:31 附近存在空窗');
+    if (this.state.inventory.some((item) => item.id === 'clue-shred-label')) anomalies.push('碎纸桶发现结论页标签残片');
+    return anomalies.slice(0, 3);
+  }
+
+  private getNextActions(): string[] {
+    const actions: string[] = [];
+    if (!this.state.flags['first-contradiction-found']) actions.push('追问周岚，确认“封存后未触碰”是否成立');
+    if (this.state.flags['first-contradiction-found'] && !this.state.inventory.some((item) => item.id === 'clue-camera-gap-0731')) actions.push('前往走廊监控区补全 07:31 空档');
+    if (this.state.flags['first-contradiction-found'] && !this.state.inventory.some((item) => item.id === 'clue-shred-label')) actions.push('检查茶水间回收桶，追索碎纸来源');
+    if (this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete']) actions.push('证据足够后进入关键对质');
+    return actions.slice(0, 2);
+  }
+
+  private renderInvestigationBody(background: string): string {
+    const anomalies = this.getConfirmedAnomalies();
+    const nextActions = this.getNextActions();
+    return `
+      ${this.renderSceneTabs()}
+      <div class="investigation-layout">
+        <div class="investigation-stage" style="background-image:url('${background}'), url('/assets/cases/case-001/scenes/review_room.jpg')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>
+        <aside class="pressure-panel">
+          <section><h3>当前目标</h3><p>${this.state.objective}</p></section>
+          <section><h3>已确认异常</h3><ul>${(anomalies.length ? anomalies : ['暂无已确认异常']).map((item) => `<li>${item}</li>`).join('')}</ul></section>
+          <section><h3>下一步行动</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
+            ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}
+            ${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}
+          </section>
+        </aside>
+      </div>
+      ${this.renderCharacterCards()}
+      ${DEV_MODE ? `<section class="dev-panel"><h3>DEV 事件</h3><ul class="event-feed">${this.state.eventFeed.map((evt) => `<li>${evt.type}</li>`).join('')}</ul></section>` : ''}
+    `;
+  }
+
   private render(): void {
     if (this.loading) {
       this.root.innerHTML = `<main class="stage-shell"><section class="screen-panel"><h2>载入案件资源中…</h2><p>正在优先准备当前场景、角色与核心 UI。</p></section></main>`;
@@ -590,16 +663,17 @@ export class StageOneApp {
     this.root.innerHTML = `
       <main class="stage-shell">
         <header class="status-bar">
-          <div class="status-left"><p class="status-kicker">单舞台侦探系统 / 阶段 6</p><h1>${caseConfig.title}</h1></div>
-          <div class="status-right"><div><span>Screen</span><strong>${this.state.screen}</strong></div><div><span>Case</span><strong>${this.state.caseId}</strong></div><div><span>存档时间</span><strong>${updatedAt}</strong></div></div>
+          <div class="status-left"><h1>${caseConfig.title}</h1></div>
+          <div class="status-middle"><p>北港生物研发中心 6 层 · 07:20 - 08:22</p></div>
+          <div class="status-right"><div><span>当前目标</span><strong>${this.state.objective}</strong></div>${DEV_MODE ? `<div><span>Screen</span><strong>${this.state.screen}</strong></div><div><span>Case</span><strong>${this.state.caseId}</strong></div><div><span>存档时间</span><strong>${updatedAt}</strong></div>` : ''}</div>
         </header>
         <section class="stage-main">
           <section class="visual-stage">
-            <div class="screen-tag">SCREEN / ${this.state.screen.toUpperCase()}</div>
+            ${DEV_MODE ? `<div class="screen-tag">SCREEN / ${this.state.screen.toUpperCase()}</div>` : ''}
             ${this.getScreenBody(caseConfig.introLines, caseConfig.scenes.find((s) => s.id === this.state.currentSceneId)?.background ?? caseConfig.scenes[0].background)}
             ${this.renderInspectOverlay()}${this.renderDialogueOverlay()}${this.renderHintOverlay()}
           </section>
-          <aside class="case-board ${this.boardOpen ? 'is-open' : ''}">
+          ${DEV_MODE ? `<aside class="case-board ${this.boardOpen ? 'is-open' : ''}">
             <h2>案件板</h2>
             ${this.state.restoreNotice ? `<section><p>${this.state.restoreNotice}</p></section>` : ''}
             ${this.primaryNotice ? `<section><h3>提示</h3><p>${this.primaryNotice}</p></section>` : ''}
@@ -608,9 +682,9 @@ export class StageOneApp {
             <section><h3>第一处矛盾</h3><p>${this.state.contradictionMessage ?? '尚未成立'}</p></section>
             <section><h3>关键对质</h3><p>${this.state.flags['confrontation-complete'] ? '已完成' : '未完成'}</p>${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}</section>
             ${DEV_MODE ? `<section><h3>DEV 事件</h3><ul class="event-feed">${this.state.eventFeed.map((evt) => `<li>${evt.type}</li>`).join('')}</ul></section>` : ''}
-          </aside>
+          </aside>` : ''}
         </section>
-        <footer class="interaction-bar"><div class="quick-actions"><button data-screen="archive" class="ghost-btn">archive</button><button data-screen="intro" class="ghost-btn">intro</button><button data-screen="investigation" class="ghost-btn">investigation</button><button data-toggle-board="true" class="ghost-btn">案件板</button></div><button data-next="true" class="primary-btn" ${this.state.screen === 'investigation' ? 'disabled' : ''}>推进到下一主屏</button></footer>
+        ${DEV_MODE ? `<footer class="interaction-bar"><div class="quick-actions"><button data-screen="archive" class="ghost-btn">archive</button><button data-screen="intro" class="ghost-btn">intro</button><button data-screen="investigation" class="ghost-btn">investigation</button><button data-toggle-board="true" class="ghost-btn">案件板</button></div><button data-next="true" class="primary-btn" ${this.state.screen === 'investigation' ? 'disabled' : ''}>推进到下一主屏</button></footer>` : ''}
       </main>`;
 
     this.bindEvents();
@@ -622,7 +696,7 @@ export class StageOneApp {
     if (this.state.screen === 'confrontation') return this.renderConfrontationBody();
     if (this.state.screen === 'deduction') return this.renderDeductionBody();
     if (this.state.screen === 'result') return this.renderResultBody();
-    return `${this.renderSceneTabs()}<div class="investigation-stage" style="background-image:url('${background}'), url('/assets/cases/case-001/scenes/meeting_room.jpg')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>${this.renderCharacterCards()}`;
+    return this.renderInvestigationBody(this.getSceneBackground(this.state.currentSceneId, background));
   }
 
   private goNextScreen(): void {
