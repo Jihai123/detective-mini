@@ -39,6 +39,17 @@ const CHARACTER_VISUAL_OVERRIDES: Record<string, { avatar: string; portrait: str
   },
 };
 
+
+const AMBIENCE_TRACKS: Record<string, string> = {
+  review_room: '/assets/cases/case-001/audio/room_loop.mp3',
+  hallway_monitor: '/assets/cases/case-001/audio/hallway_loop.mp3',
+  pantry_bin: '/assets/cases/case-001/audio/pantry_loop.mp3',
+};
+const UI_CLICK_AUDIO = '/assets/cases/case-001/audio/ui-click.mp3';
+const CLUE_AUDIO = '/assets/cases/case-001/audio/clue-discovered.mp3';
+const CONTRADICTION_AUDIO = '/assets/cases/case-001/audio/contradiction-hit.mp3';
+const CONFRONT_SUCCESS_AUDIO = '/assets/cases/case-001/audio/confrontation-success.mp3';
+
 export class StageOneApp {
   private readonly root: HTMLElement;
 
@@ -49,6 +60,12 @@ export class StageOneApp {
   private loading = true;
 
   private primaryNotice = '';
+
+  private ambienceAudio: HTMLAudioElement | null = null;
+
+  private ambienceSceneId: string | null = null;
+
+  private sfxMuted = false;
 
   private state: StageRuntimeState;
 
@@ -99,6 +116,50 @@ export class StageOneApp {
       this.render();
       this.preloadDeferredAssets();
       this.setupIdleHint();
+    });
+  }
+
+
+  private playSfx(src: string, volume: number): void {
+    if (this.sfxMuted) return;
+    const audio = new Audio(src);
+    audio.volume = volume;
+    void audio.play().catch(() => {
+      this.sfxMuted = true;
+    });
+  }
+
+  private syncAmbienceForScene(sceneId: string): void {
+    const track = AMBIENCE_TRACKS[sceneId];
+    if (!track || this.ambienceSceneId === sceneId) return;
+
+    const next = new Audio(track);
+    next.loop = true;
+    next.volume = 0;
+
+    void next.play().then(() => {
+      const prev = this.ambienceAudio;
+      this.ambienceAudio = next;
+      this.ambienceSceneId = sceneId;
+      const fadeIn = window.setInterval(() => {
+        if (!this.ambienceAudio || this.ambienceAudio !== next) {
+          window.clearInterval(fadeIn);
+          return;
+        }
+        next.volume = Math.min(0.22, next.volume + 0.03);
+        if (next.volume >= 0.22) window.clearInterval(fadeIn);
+      }, 90);
+      if (prev) {
+        const fadeOut = window.setInterval(() => {
+          prev.volume = Math.max(0, prev.volume - 0.04);
+          if (prev.volume <= 0.01) {
+            window.clearInterval(fadeOut);
+            prev.pause();
+          }
+        }, 70);
+      }
+    }).catch(() => {
+      this.sfxMuted = true;
     });
   }
 
@@ -463,12 +524,29 @@ export class StageOneApp {
       .join('')}</div></section>`;
   }
 
+
+  private getHotspotState(hotspotId: string): 'idle' | 'done' {
+    const doneByHotspot: Record<string, string> = {
+      desk: 'clue-envelope-opened',
+      door_terminal: 'clue-doorlog-0728',
+      monitor_node: 'clue-camera-gap-0731',
+      recycle_bin: 'clue-shred-label',
+    };
+    const clueId = doneByHotspot[hotspotId];
+    if (!clueId) return 'idle';
+    return this.state.inventory.some((item) => item.id === clueId) ? 'done' : 'idle';
+  }
+
   private renderHotspots(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const scene = caseConfig.scenes.find((s) => s.id === this.state.currentSceneId);
     if (!scene) return '';
     return scene.hotspots
-      .map((hotspot) => `<button class="hotspot" data-hotspot-id="${hotspot.id}" aria-label="${hotspot.label}" style="left:${hotspot.position.x}%;top:${hotspot.position.y}%;"><img src="/assets/ui/icons/icon-hotspot-target-marker.png" alt="" /><span>${hotspot.label}</span></button>`)
+      .map((hotspot) => {
+        const unlocked = this.evalCondition(hotspot.unlockCondition).ok;
+        const state = this.getHotspotState(hotspot.id);
+        return `<button class="hotspot ${state === 'done' ? 'is-done' : ''} ${unlocked ? '' : 'is-locked'}" data-hotspot-id="${hotspot.id}" aria-label="${hotspot.label}" style="left:${hotspot.position.x}%;top:${hotspot.position.y}%;" ${unlocked ? '' : 'disabled'}><img src="/assets/ui/icons/icon-hotspot-target-marker.png" alt="" /><span>${hotspot.label}</span></button>`;
+      })
       .join('');
   }
 
@@ -507,7 +585,15 @@ export class StageOneApp {
   private renderInspectOverlay(): string {
     if (this.state.overlay !== 'inspect' || !this.state.inspectCard) return '';
     const clue = this.state.inspectCard.clue;
-    return `<section class="overlay"><div class="inspect-card"><h3>现场观察卡</h3><p class="inspect-from">来源：${clue?.source ?? this.state.inspectCard.hotspotLabel}</p>${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='/assets/cases/case-001/scenes/review_room.jpg'" />` : ''}<h4>${clue?.title ?? '暂无新增线索'}</h4><p>${clue?.description ?? ''}</p><button data-close-overlay="true" class="primary-btn">继续调查</button></div></section>`;
+    const impactLine = clue?.id === 'clue-envelope-opened'
+      ? '封套完整性的说法已经站不住了。'
+      : clue?.id === 'clue-doorlog-0728'
+        ? '07:28 的进入行为可以直接压问口供。'
+        : clue?.id === 'clue-camera-gap-0731'
+          ? '关键时段被人为制造了视线盲区。'
+          : '这份物证足够推动下一轮施压。';
+    const actionLabel = clue?.id === 'clue-doorlog-0728' ? '记录线索' : clue?.id === 'clue-shred-label' ? '标记异常' : '收入证据';
+    return `<section class="overlay"><div class="inspect-card"><div class="inspect-hero">${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='/assets/cases/case-001/scenes/review_room.jpg'" />` : ''}</div><h3>${clue?.title ?? '暂无新增线索'}</h3><p class="inspect-judgement">${impactLine}</p><button data-close-overlay="true" class="primary-btn">${actionLabel}</button></div></section>`;
   }
 
   private renderHintOverlay(): string {
@@ -517,7 +603,7 @@ export class StageOneApp {
 
   private renderOption(option: DialogueOption): string {
     const check = this.evalCondition(option.unlockCondition ?? option.condition);
-    return `<button class="dialogue-option ${check.ok ? '' : 'is-locked'}" data-dialogue-to="${option.to}" ${check.ok ? '' : 'disabled'}><span class="option-arrow">›</span><span>${option.label}</span>${!check.ok && DEV_MODE ? `<small>未解锁：${check.missing.join(' / ')}</small>` : ''}</button>`;
+    return `<button class="dialogue-option ${check.ok ? '' : 'is-locked'}" data-dialogue-to="${option.to}" ${check.ok ? '' : 'disabled'}><span class="option-arrow">›</span><span><strong>${option.label}</strong></span>${!check.ok && DEV_MODE ? `<small>未解锁：${check.missing.join(' / ')}</small>` : ''}</button>`;
   }
 
   private renderDialogueOverlay(): string {
@@ -529,7 +615,7 @@ export class StageOneApp {
     const line = node.lines[this.state.dialogueState.lineIndex] ?? '';
     const end = this.state.dialogueState.lineIndex >= node.lines.length - 1;
     const visual = this.getCharacterVisual(character);
-    return `<section class="overlay dialogue-overlay"><div class="dialogue-card emotion-${node.emotion}"><aside class="dialogue-actor"><img class="portrait" src="${visual?.portrait ?? character.portrait}" alt="${character.name}" onerror="this.src='${character.portrait}'" /><img class="avatar-badge" src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /></aside><div class="dialogue-main"><header><h3>${character.name}</h3><p>${character.role}</p></header><article>${line}</article><div class="dialogue-controls">${end ? '<span>选择追问动作</span>' : '<button data-dialogue-next="true" class="ghost-btn">继续施压</button>'}<button data-close-overlay="true" class="ghost-btn subtle-btn">结束对话</button></div>${end ? `<div class="dialogue-options">${node.options.slice(0, 3).map((o) => this.renderOption(o)).join('')}</div>` : ''}</div></div></section>`;
+    return `<section class="overlay dialogue-overlay"><div class="dialogue-card interrogation-scene"><aside class="dialogue-actor"><img class="portrait" src="${visual?.portrait ?? character.portrait}" alt="${character.name}" onerror="this.src='${character.portrait}'" /><img class="avatar-badge" src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /></aside><div class="dialogue-main"><header><h3>${character.name}</h3><p>${character.role}</p></header><article>${line}</article><div class="dialogue-controls">${end ? '<span>选择追问动作</span>' : '<button data-dialogue-next="true" class="ghost-btn">继续施压</button>'}<button data-close-overlay="true" class="ghost-btn subtle-btn">暂退</button></div>${end ? `<div class="dialogue-options">${node.options.slice(0, 3).map((o) => this.renderOption(o)).join('')}</div>` : ''}</div></div></section>`;
   }
 
   private renderConfrontationBody(): string {
@@ -537,8 +623,12 @@ export class StageOneApp {
     const target = caseConfig.characters.find((c) => c.id === caseConfig.confrontation.target);
     const round = caseConfig.confrontation.rounds[this.state.confrontation.roundIndex];
     const remain = caseConfig.confrontation.maxMistakes - this.state.confrontation.mistakes;
-    return `<section class="confrontation-shell"><h2>关键对质 / 目标：${target?.name ?? caseConfig.confrontation.target}</h2><p>回合 ${Math.min(this.state.confrontation.roundIndex + 1, caseConfig.confrontation.rounds.length)} / ${caseConfig.confrontation.rounds.length} ｜ 错误 ${this.state.confrontation.mistakes} ｜ 剩余容错 ${remain}</p><article class="defense-line">${round?.defense ?? '对质结束'}</article><p class="confront-feedback">${this.state.confrontation.lastFeedback}</p><h3>出示证据反驳</h3><div class="evidence-grid">${this.state.inventory
-      .map((item) => `<button class="evidence-card" data-present-evidence="${item.id}"><strong>${item.title}</strong><small>${item.source}</small></button>`)
+    const targetVisual = this.getCharacterVisual(target);
+    const reducedEvidence = this.state.inventory
+      .filter((item) => item.id === round?.correctEvidence || item.isKey)
+      .slice(0, 3);
+    return `<section class="confrontation-shell"><header class="confront-head"><h2>关键对质</h2><p>回合 ${Math.min(this.state.confrontation.roundIndex + 1, caseConfig.confrontation.rounds.length)} / ${caseConfig.confrontation.rounds.length} ｜ 剩余容错 ${remain}</p></header><div class="confront-stage"><img src="${targetVisual?.portrait ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png'}" alt="${target?.name ?? '目标'}" class="confront-portrait" /><article class="defense-line">${round?.defense ?? '对质结束'}</article></div><p class="confront-feedback">${this.state.confrontation.lastFeedback}</p><h3>出示证据</h3><div class="evidence-grid">${reducedEvidence
+      .map((item) => `<button class="evidence-card" data-present-evidence="${item.id}"><strong>${item.title}</strong><small>${item.source.split(' / ')[0]}</small></button>`)
       .join('')}</div></section>`;
   }
 
@@ -588,26 +678,17 @@ export class StageOneApp {
     const result = this.state.result ?? this.computeResult();
     const correct = caseConfig.submission.correct;
     return `
-      <section class="screen-panel">
-        <h2>结案报告</h2>
-        <p>评级：<strong>${result.rating}</strong>（${result.score} 分）</p>
-        <p>关键线索发现率：${result.clueRate}%</p>
-        <p>时间验证完成：${result.timelineComplete ? '是' : '否'}</p>
-        <p>是否触发提示/失败回退：${result.usedHintOrFallback ? '是' : '否'}</p>
-        <h3>玩家结论 vs 正确真相</h3>
-        <ul>
-          <li>嫌疑人：${this.state.submission.suspect} / 正确：${correct.suspect}</li>
-          <li>关键谎言：${this.state.submission.keyLie} / 正确：${correct.keyLie}</li>
-          <li>实施方式：${this.state.submission.method} / 正确：${correct.method}</li>
-          <li>最终去向：${this.state.submission.destination} / 正确：${correct.destination}</li>
-        </ul>
-        <button class="ghost-btn" data-screen="archive">返回档案室</button>
-        <button class="primary-btn" data-restart-case="true">重开案件</button>
+      <section class="screen-panel result-shell">
+        <h2>案件归档</h2>
+        <div class="result-rating"><span>${result.rating}</span><small>${result.score} 分</small></div>
+        <p class="result-truth">你已锁定真相核心：${correct.suspect}在会前拆封并转移结论页。</p>
+        <div class="result-chain"><h3>证据链</h3><ol><li>封套二次开启痕迹</li><li>07:28 门禁进入</li><li>碎纸残片落点</li></ol></div>
+        <div class="result-actions"><button class="ghost-btn" data-screen="archive">返回档案室</button><button class="primary-btn" data-restart-case="true">重开案件</button></div>
       </section>
       <section class="screen-panel">
         <h2>真相回放</h2>
         ${caseConfig.truthReplay
-          .map((seg) => `<article class="replay-segment"><h3>${seg.timeAnchor} · ${seg.title}</h3><p>${seg.summary}</p><small>关联证据：${seg.evidenceIds.join(' / ')}</small></article>`)
+          .map((seg) => `<article class="replay-segment"><h3>${seg.timeAnchor} · ${seg.title}</h3><p>${seg.summary}</p></article>`)
           .join('')}
       </section>
     `;
@@ -640,8 +721,8 @@ export class StageOneApp {
         <div class="investigation-stage" style="background-image:url('${background}'), url('/assets/cases/case-001/scenes/review_room.jpg')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>
         <aside class="pressure-panel">
           <section><h3>当前目标</h3><p>${this.state.objective}</p></section>
-          <section><h3>已确认异常</h3><ul>${(anomalies.length ? anomalies : ['暂无已确认异常']).map((item) => `<li>${item}</li>`).join('')}</ul></section>
-          <section><h3>下一步行动</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
+          <section><h3>已压实异常</h3><ul>${(anomalies.length ? anomalies : ['暂无已压实异常']).map((item) => `<li>${item}</li>`).join('')}</ul></section>
+          <section><h3>推进动作</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
             ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}
             ${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}
           </section>
@@ -685,7 +766,7 @@ export class StageOneApp {
               <h3>封存中</h3>
               <p class="case-tags">封存案件</p>
               <p class="case-summary">该档案尚未开放，请等待后续更新。</p>
-              <button class="ghost-btn" disabled>已锁定</button>
+              <span class="locked-tag">权限锁定</span>
             </div>
           </article>
         </section>
@@ -707,10 +788,8 @@ export class StageOneApp {
               <p>评审会开始前，唯一纸质结论页失踪。</p>
             </section>
             <section>
-              <h2>背景说明</h2>
-              <p>07:20，评审资料送达，周岚负责封装并完成会前准备。</p>
-              <p>08:00 前，会议准备阶段发现结论页异常缺失，外部评委已在路上。</p>
-              <p>会议必须继续，调查窗口极短，必须先锁定会前接触链路。</p>
+              <h2>接案简报</h2>
+              <p>07:20 资料送达，08:00 前结论页失踪。</p><p>外部评委已在路上，你只有一轮窗口锁定接触链。</p>
             </section>
             <section>
               <h2>涉案人物概览</h2>
@@ -746,6 +825,7 @@ export class StageOneApp {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const updatedAt = new Date(this.state.updatedAt).toLocaleString('zh-CN', { hour12: false });
     const archiveOrIntro = this.state.screen === 'archive' || this.state.screen === 'intro';
+    if (this.state.screen === 'investigation') this.syncAmbienceForScene(this.state.currentSceneId);
 
     this.root.innerHTML = `
       <main class="stage-shell">
@@ -793,8 +873,8 @@ export class StageOneApp {
   }
 
   private bindEvents(): void {
-    this.root.querySelectorAll<HTMLButtonElement>('[data-screen]').forEach((button) => button.addEventListener('click', () => { const s = button.dataset.screen as Screen | undefined; if (s) this.setScreen(s); }));
-    this.root.querySelectorAll<HTMLButtonElement>('[data-hotspot-id]').forEach((button) => button.addEventListener('click', () => button.dataset.hotspotId && this.investigateHotspot(button.dataset.hotspotId)));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-screen]').forEach((button) => button.addEventListener('click', () => { const s = button.dataset.screen as Screen | undefined; if (s) { this.playSfx(UI_CLICK_AUDIO, 0.26); this.setScreen(s); } }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-hotspot-id]').forEach((button) => { button.addEventListener('mouseenter', () => this.playSfx(UI_CLICK_AUDIO, 0.18)); button.addEventListener('click', () => { if (!button.dataset.hotspotId) return; this.playSfx(UI_CLICK_AUDIO, 0.34); this.investigateHotspot(button.dataset.hotspotId); this.playSfx(CLUE_AUDIO, 0.42); }); });
     this.root.querySelectorAll<HTMLButtonElement>('[data-character-id]').forEach((button) => button.addEventListener('click', () => button.dataset.characterId && this.openDialogue(button.dataset.characterId)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-dialogue-to]').forEach((button) => button.addEventListener('click', () => button.dataset.dialogueTo && this.jumpDialogueNode(button.dataset.dialogueTo)));
     const dialogueNext = this.root.querySelector<HTMLButtonElement>('[data-dialogue-next="true"]');
@@ -803,10 +883,10 @@ export class StageOneApp {
     if (close) close.addEventListener('click', () => this.closeOverlay());
     const next = this.root.querySelector<HTMLButtonElement>('[data-next="true"]');
     if (next) next.addEventListener('click', () => this.goNextScreen());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(UI_CLICK_AUDIO, 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
     const startConf = this.root.querySelector<HTMLButtonElement>('[data-start-confrontation="true"]');
     if (startConf) startConf.addEventListener('click', () => this.startConfrontation());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => button.dataset.presentEvidence && this.presentEvidence(button.dataset.presentEvidence)));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const round = loadCaseConfig(this.state.caseId).confrontation.rounds[this.state.confrontation.roundIndex]; this.playSfx(evidenceId === round?.correctEvidence ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, evidenceId === round?.correctEvidence ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-timeline-clue]').forEach((button) => button.addEventListener('click', () => button.dataset.selectTimelineClue && this.selectTimelineClue(button.dataset.selectTimelineClue)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-place-slot]').forEach((button) => button.addEventListener('click', () => { const slot = loadCaseConfig(this.state.caseId).timelineSlots.find((s) => s.id === button.dataset.placeSlot); if (slot) this.placeTimeline(slot); }));
     this.root.querySelectorAll<HTMLButtonElement>('[data-submission-field]').forEach((button) => button.addEventListener('click', () => { const field = button.dataset.submissionField as keyof SubmissionState; const value = button.dataset.submissionValue; if (field && value) this.updateSubmission(field, value); }));
