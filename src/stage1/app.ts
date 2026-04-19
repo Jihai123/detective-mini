@@ -652,6 +652,92 @@ export class StageOneApp {
     `;
   }
 
+  private renderArchiveBody(): string {
+    const canContinue = this.state.screen !== 'archive' || this.state.inventory.length > 0 || this.state.testimonies.length > 0;
+    return `
+      <section class="archive-shell" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg'), url('/assets/cases/case-001/scenes/review_room.jpg')">
+        <header class="archive-header">
+          <h1>档案室 / CASE ARCHIVE</h1>
+          <p>选择档案并进入调查</p>
+        </header>
+        <section class="archive-grid">
+          <article class="case-card case-card-main">
+            <div class="case-card-cover" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg')"></div>
+            <div class="case-card-content">
+              <h2>08:17 的空档</h2>
+              <p class="case-tags">企业调查 / 资料失窃</p>
+              <p class="case-meta">北港生物研发中心 6 层 · 07:20 - 08:22</p>
+              <p class="case-risk">风险等级：HIGH · 难度：NORMAL</p>
+              <p class="case-summary">评审会前，唯一纸质结论页失踪。</p>
+              <button class="primary-btn archive-enter-btn" data-screen="intro">${canContinue ? '继续导入' : '导入案件'}</button>
+            </div>
+          </article>
+          <article class="case-card case-card-side">
+            <div class="case-card-content">
+              <h3>评审室失页事件</h3>
+              <p class="case-tags">教学档案</p>
+              <p class="case-summary">快速体验调查流程与证据链收集方式。</p>
+              <button class="ghost-btn" data-screen="intro">教学进入</button>
+            </div>
+          </article>
+          <article class="case-card case-card-side case-card-locked" aria-disabled="true">
+            <div class="case-card-content">
+              <h3>封存中</h3>
+              <p class="case-tags">封存案件</p>
+              <p class="case-summary">该档案尚未开放，请等待后续更新。</p>
+              <button class="ghost-btn" disabled>已锁定</button>
+            </div>
+          </article>
+        </section>
+      </section>
+    `;
+  }
+
+  private renderIntroBody(): string {
+    return `
+      <section class="briefing-shell">
+        <header class="briefing-header">
+          <h1>08:17 的空档</h1>
+          <p>北港生物研发中心 6 层 · 07:20 - 08:22</p>
+        </header>
+        <section class="briefing-layout">
+          <article class="briefing-copy">
+            <section>
+              <h2>案件摘要</h2>
+              <p>评审会开始前，唯一纸质结论页失踪。</p>
+            </section>
+            <section>
+              <h2>背景说明</h2>
+              <p>07:20，评审资料送达，周岚负责封装并完成会前准备。</p>
+              <p>08:00 前，会议准备阶段发现结论页异常缺失，外部评委已在路上。</p>
+              <p>会议必须继续，调查窗口极短，必须先锁定会前接触链路。</p>
+            </section>
+            <section>
+              <h2>涉案人物概览</h2>
+              <ul>
+                <li>周岚：行政助理，最后接触资料者</li>
+                <li>陈序：产品经理，提供侧面信息</li>
+              </ul>
+            </section>
+            <section>
+              <h2>当前调查目标</h2>
+              <p>先确认谁在会前接触过结论页。</p>
+            </section>
+          </article>
+          <aside class="briefing-visual" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg'), url('/assets/cases/case-001/scenes/review_room.jpg')">
+            <div class="briefing-visual-overlay">
+              <p>CASE-001 BRIEFING</p>
+            </div>
+          </aside>
+        </section>
+        <footer class="briefing-actions">
+          <button class="ghost-btn" data-screen="archive">返回档案室</button>
+          <button class="primary-btn briefing-enter-btn" data-screen="investigation">进入调查</button>
+        </footer>
+      </section>
+    `;
+  }
+
   private render(): void {
     if (this.loading) {
       this.root.innerHTML = `<main class="stage-shell"><section class="screen-panel"><h2>载入案件资源中…</h2><p>正在优先准备当前场景、角色与核心 UI。</p></section></main>`;
@@ -659,21 +745,22 @@ export class StageOneApp {
     }
     const caseConfig = loadCaseConfig(this.state.caseId);
     const updatedAt = new Date(this.state.updatedAt).toLocaleString('zh-CN', { hour12: false });
+    const archiveOrIntro = this.state.screen === 'archive' || this.state.screen === 'intro';
 
     this.root.innerHTML = `
       <main class="stage-shell">
-        <header class="status-bar">
+        ${archiveOrIntro ? '' : `<header class="status-bar">
           <div class="status-left"><h1>${caseConfig.title}</h1></div>
           <div class="status-middle"><p>北港生物研发中心 6 层 · 07:20 - 08:22</p></div>
           <div class="status-right"><div><span>当前目标</span><strong>${this.state.objective}</strong></div>${DEV_MODE ? `<div><span>Screen</span><strong>${this.state.screen}</strong></div><div><span>Case</span><strong>${this.state.caseId}</strong></div><div><span>存档时间</span><strong>${updatedAt}</strong></div>` : ''}</div>
-        </header>
+        </header>`}
         <section class="stage-main">
           <section class="visual-stage">
             ${DEV_MODE ? `<div class="screen-tag">SCREEN / ${this.state.screen.toUpperCase()}</div>` : ''}
-            ${this.getScreenBody(caseConfig.introLines, caseConfig.scenes.find((s) => s.id === this.state.currentSceneId)?.background ?? caseConfig.scenes[0].background)}
+            ${this.getScreenBody(caseConfig.scenes.find((s) => s.id === this.state.currentSceneId)?.background ?? caseConfig.scenes[0].background)}
             ${this.renderInspectOverlay()}${this.renderDialogueOverlay()}${this.renderHintOverlay()}
           </section>
-          ${DEV_MODE ? `<aside class="case-board ${this.boardOpen ? 'is-open' : ''}">
+          ${DEV_MODE && !archiveOrIntro ? `<aside class="case-board ${this.boardOpen ? 'is-open' : ''}">
             <h2>案件板</h2>
             ${this.state.restoreNotice ? `<section><p>${this.state.restoreNotice}</p></section>` : ''}
             ${this.primaryNotice ? `<section><h3>提示</h3><p>${this.primaryNotice}</p></section>` : ''}
@@ -684,15 +771,15 @@ export class StageOneApp {
             ${DEV_MODE ? `<section><h3>DEV 事件</h3><ul class="event-feed">${this.state.eventFeed.map((evt) => `<li>${evt.type}</li>`).join('')}</ul></section>` : ''}
           </aside>` : ''}
         </section>
-        ${DEV_MODE ? `<footer class="interaction-bar"><div class="quick-actions"><button data-screen="archive" class="ghost-btn">archive</button><button data-screen="intro" class="ghost-btn">intro</button><button data-screen="investigation" class="ghost-btn">investigation</button><button data-toggle-board="true" class="ghost-btn">案件板</button></div><button data-next="true" class="primary-btn" ${this.state.screen === 'investigation' ? 'disabled' : ''}>推进到下一主屏</button></footer>` : ''}
+        ${DEV_MODE ? `<footer class="interaction-bar"><div class="quick-actions"><button data-screen="archive" class="ghost-btn">archive</button><button data-screen="intro" class="ghost-btn">intro</button><button data-screen="investigation" class="ghost-btn">investigation</button>${archiveOrIntro ? '' : '<button data-toggle-board="true" class="ghost-btn">案件板</button>'}</div><button data-next="true" class="primary-btn" ${this.state.screen === 'investigation' ? 'disabled' : ''}>推进到下一主屏</button></footer>` : ''}
       </main>`;
 
     this.bindEvents();
   }
 
-  private getScreenBody(introLines: string[], background: string): string {
-    if (this.state.screen === 'archive') return `<div class="screen-panel"><h2>档案室入口</h2><p>选择 case-001 并完成完整结案闭环。</p></div>`;
-    if (this.state.screen === 'intro') return `<div class="screen-panel"><h2>案件引导</h2><ul>${introLines.map((line) => `<li>${line}</li>`).join('')}</ul></div>`;
+  private getScreenBody(background: string): string {
+    if (this.state.screen === 'archive') return this.renderArchiveBody();
+    if (this.state.screen === 'intro') return this.renderIntroBody();
     if (this.state.screen === 'confrontation') return this.renderConfrontationBody();
     if (this.state.screen === 'deduction') return this.renderDeductionBody();
     if (this.state.screen === 'result') return this.renderResultBody();
