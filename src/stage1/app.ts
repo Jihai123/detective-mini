@@ -327,18 +327,20 @@ export class StageOneApp {
     this.emitEvent({ type: 'CONTRADICTION_FOUND', timestamp: Date.now(), payload: { id: 'c1' } });
   }
 
-  private investigateHotspot(hotspotId: string): void {
+  private investigateHotspot(hotspotId: string): boolean {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const scene = caseConfig.scenes.find((item) => item.id === this.state.currentSceneId);
     const hotspot = scene?.hotspots.find((item) => item.id === hotspotId);
-    if (!scene || !hotspot) return;
-    if (!this.evalCondition(hotspot.unlockCondition).ok) return;
+    if (!scene || !hotspot) return false;
+    if (!this.evalCondition(hotspot.unlockCondition).ok) return false;
+    const before = this.state.inventory.length;
     hotspot.onInteract.forEach((effect) => this.applyHotspotEffect(caseConfig.clues, hotspot, effect));
     this.evaluateFirstContradiction();
     this.emitEvent({ type: 'HOTSPOT_INVESTIGATED', timestamp: Date.now(), payload: { hotspotId } });
     this.state.updatedAt = Date.now();
     this.persistState();
     this.render();
+    return this.state.inventory.length > before;
   }
 
   private openDialogue(characterId: string): void {
@@ -516,7 +518,7 @@ export class StageOneApp {
 
   private renderSceneTabs(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    return `<section class="scene-switcher"><p>调查区域切换</p><div class="scene-switcher-list">${caseConfig.scenes
+    return `<section class="scene-switcher"><p>转场</p><div class="scene-switcher-list">${caseConfig.scenes
       .map((scene) => {
         const unlocked = this.evalCondition(scene.unlockCondition).ok;
         return `<button class="area-btn ${scene.id === this.state.currentSceneId ? 'is-active' : ''}" data-scene-id="${scene.id}" ${unlocked ? '' : 'disabled'}>${scene.label}</button>`;
@@ -573,13 +575,13 @@ export class StageOneApp {
     const scene = caseConfig.scenes.find((s) => s.id === this.state.currentSceneId);
     if (!scene) return '';
     const chars = scene.characterIds.map((id) => caseConfig.characters.find((c) => c.id === id)).filter((c): c is CharacterConfig => Boolean(c));
-    return `<section class="character-dock">${chars
+    return `<section class="character-dock-shell"><p class="character-dock-title">可追问人物</p><section class="character-dock">${chars
       .map((character) => {
         const status = this.getCharacterCardStatus(character);
         const visual = this.getCharacterVisual(character);
-        return `<button class="character-card" data-character-id="${character.id}"><img src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /><div><strong>${character.name}</strong><p>${character.role}</p><span class="card-status ${status.hasNew ? 'has-new' : ''}"><img src="/assets/ui/icons/new-dot.svg" alt="s" />${status.label}</span></div></button>`;
+        return `<button class="character-card" data-character-id="${character.id}"><img src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /><div><strong>${character.name}</strong><p>点击进入追问</p><span class="card-status ${status.hasNew ? 'has-new' : ''}"><img src="/assets/ui/icons/new-dot.svg" alt="s" />${status.label}</span></div></button>`;
       })
-      .join('')}</section>`;
+      .join('')}</section></section>`;
   }
 
   private renderInspectOverlay(): string {
@@ -593,7 +595,7 @@ export class StageOneApp {
           ? '关键时段被人为制造了视线盲区。'
           : '这份物证足够推动下一轮施压。';
     const actionLabel = clue?.id === 'clue-doorlog-0728' ? '记录线索' : clue?.id === 'clue-shred-label' ? '标记异常' : '收入证据';
-    return `<section class="overlay"><div class="inspect-card"><div class="inspect-hero">${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='/assets/cases/case-001/scenes/review_room.jpg'" />` : ''}</div><h3>${clue?.title ?? '暂无新增线索'}</h3><p class="inspect-judgement">${impactLine}</p><button data-close-overlay="true" class="primary-btn">${actionLabel}</button></div></section>`;
+    return `<section class="overlay"><div class="inspect-card"><p class="inspect-kicker">发现证据</p><div class="inspect-hero">${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='/assets/cases/case-001/scenes/review_room.jpg'" />` : ''}</div><h3>${clue?.title ?? '暂无新增线索'}</h3><p class="inspect-judgement">${impactLine}</p><button data-close-overlay="true" class="primary-btn">${actionLabel}</button></div></section>`;
   }
 
   private renderHintOverlay(): string {
@@ -615,7 +617,7 @@ export class StageOneApp {
     const line = node.lines[this.state.dialogueState.lineIndex] ?? '';
     const end = this.state.dialogueState.lineIndex >= node.lines.length - 1;
     const visual = this.getCharacterVisual(character);
-    return `<section class="overlay dialogue-overlay"><div class="dialogue-card interrogation-scene"><aside class="dialogue-actor"><img class="portrait" src="${visual?.portrait ?? character.portrait}" alt="${character.name}" onerror="this.src='${character.portrait}'" /><img class="avatar-badge" src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /></aside><div class="dialogue-main"><header><h3>${character.name}</h3><p>${character.role}</p></header><article>${line}</article><div class="dialogue-controls">${end ? '<span>选择追问动作</span>' : '<button data-dialogue-next="true" class="ghost-btn">继续施压</button>'}<button data-close-overlay="true" class="ghost-btn subtle-btn">暂退</button></div>${end ? `<div class="dialogue-options">${node.options.slice(0, 3).map((o) => this.renderOption(o)).join('')}</div>` : ''}</div></div></section>`;
+    return `<section class="overlay dialogue-overlay"><div class="dialogue-card interrogation-scene"><aside class="dialogue-actor"><img class="portrait" src="${visual?.portrait ?? character.portrait}" alt="${character.name}" onerror="this.src='${character.portrait}'" /><img class="avatar-badge" src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /></aside><div class="dialogue-main"><header><div><h3>${character.name}</h3><p>${character.role}</p></div><button data-close-overlay="true" class="ghost-btn subtle-btn">结束对话</button></header><article>${line}</article><div class="dialogue-controls">${end ? '<span>选择追问动作</span>' : '<button data-dialogue-next="true" class="ghost-btn">继续施压</button>'}</div>${end ? `<div class="dialogue-options">${node.options.slice(0, 3).map((o) => this.renderOption(o)).join('')}</div>` : ''}</div></div></section>`;
   }
 
   private renderConfrontationBody(): string {
@@ -720,9 +722,9 @@ export class StageOneApp {
       <div class="investigation-layout">
         <div class="investigation-stage" style="background-image:url('${background}'), url('/assets/cases/case-001/scenes/review_room.jpg')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>
         <aside class="pressure-panel">
-          <section><h3>当前目标</h3><p>${this.state.objective}</p></section>
-          <section><h3>已压实异常</h3><ul>${(anomalies.length ? anomalies : ['暂无已压实异常']).map((item) => `<li>${item}</li>`).join('')}</ul></section>
-          <section><h3>推进动作</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
+          <section><h3>调查判断</h3><p>${this.state.objective}</p></section>
+          <section><h3>已确认线索</h3><ul>${(anomalies.length ? anomalies : ['暂无已确认线索']).map((item) => `<li>${item}</li>`).join('')}</ul></section>
+          <section><h3>下一步</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
             ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}
             ${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}
           </section>
@@ -874,7 +876,7 @@ export class StageOneApp {
 
   private bindEvents(): void {
     this.root.querySelectorAll<HTMLButtonElement>('[data-screen]').forEach((button) => button.addEventListener('click', () => { const s = button.dataset.screen as Screen | undefined; if (s) { this.playSfx(UI_CLICK_AUDIO, 0.26); this.setScreen(s); } }));
-    this.root.querySelectorAll<HTMLButtonElement>('[data-hotspot-id]').forEach((button) => { button.addEventListener('mouseenter', () => this.playSfx(UI_CLICK_AUDIO, 0.18)); button.addEventListener('click', () => { if (!button.dataset.hotspotId) return; this.playSfx(UI_CLICK_AUDIO, 0.34); this.investigateHotspot(button.dataset.hotspotId); this.playSfx(CLUE_AUDIO, 0.42); }); });
+    this.root.querySelectorAll<HTMLButtonElement>('[data-hotspot-id]').forEach((button) => { button.addEventListener('click', () => { if (!button.dataset.hotspotId) return; this.playSfx(UI_CLICK_AUDIO, 0.3); const discovered = this.investigateHotspot(button.dataset.hotspotId); if (discovered) this.playSfx(CLUE_AUDIO, 0.42); }); });
     this.root.querySelectorAll<HTMLButtonElement>('[data-character-id]').forEach((button) => button.addEventListener('click', () => button.dataset.characterId && this.openDialogue(button.dataset.characterId)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-dialogue-to]').forEach((button) => button.addEventListener('click', () => button.dataset.dialogueTo && this.jumpDialogueNode(button.dataset.dialogueTo)));
     const dialogueNext = this.root.querySelector<HTMLButtonElement>('[data-dialogue-next="true"]');
