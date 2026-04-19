@@ -1,244 +1,86 @@
-import type { CaseFile } from '../../domain/types';
+import type { StageCaseConfig } from '../../stage1/types';
 
-export const case001: CaseFile = {
+export const case001Config: StageCaseConfig = {
   id: 'case-001',
-  title: '正式档案：08:17 的空档',
-  difficulty: 'normal',
-  assets: {
-    scenes: {
-      main: '/assets/cases/case-001/scenes/meeting_room.jpg',
-      hallway: '/assets/cases/case-001/scenes/hallway.jpg',
-      archive: '/assets/cases/case-001/scenes/archive_room.jpg'
-    },
-    characters: {
-      linlan: '/assets/cases/case-001/characters/linlan.png',
-      songhao: '/assets/cases/case-001/characters/songhao.png',
-      guwen: '/assets/cases/case-001/characters/guwen.png'
-    }
-  },
-  archiveSubtitle: 'B7 报告原件失踪 / 审查前关键三分钟',
-  archiveMeta: {
-    type: '核心报告转移',
-    location: '北港生物研发中心 6 层',
-    incidentWindow: '2026-04-02 08:10 - 08:22',
-    threatLevel: 'high'
-  },
-  briefing: {
-    intro:
-      'B7 抗体稳定性报告是审查会唯一纸质原件。08:30 审查开始前，报告在 08:17 左右失踪，导致拨款评估中止。',
-    objective: '在审查前时间窗口内，建立“谁在何时何地做了什么”的闭环证据链并提交结案推理。',
-    sections: [
-      {
-        headline: '为什么重要',
-        body: '报告决定项目是否继续获得季度预算。若延期责任被实锤，项目经理将被撤换。'
-      },
-      {
-        headline: '调查目标',
-        body: '识别关键谎言、标记关键证据链、填完整时间线并解释作案路径。'
-      },
-      {
-        headline: '人员关系',
-        body: '林澈掌控会议流程；宋遥掌控数据附件；顾衡掌握设备与部分门禁权限。'
-      }
-    ]
-  },
-  suspects: [
-    {
-      id: 'c1-s1',
-      name: '林澈',
-      role: '项目经理',
-      portraitAsset: 'linlan',
-      identity: '负责审查会主持与报告交付。',
-      relationToCase: '对报告中“延期归责”段落最敏感。',
-      nightAction: '称 08:10 起一直在会议室调试简报。',
-      suspiciousPoint: '签到记录显示他 08:22 才首次在会议室出现。',
-      motive: '若报告按原样提交，延期主责将落在他身上。',
-      relations: ['与宋遥在数据解释上存在分歧', '可调用资料室与会议层门禁']
-    },
-    {
-      id: 'c1-s2',
-      name: '宋遥',
-      role: '数据分析师',
-      portraitAsset: 'songhao',
-      identity: '负责图表与实验批次说明。',
-      relationToCase: '报告的技术附件由她维护。',
-      nightAction: '08:12-08:22 在工位持续处理附件并在群里更新。',
-      suspiciousPoint: '08:16-08:18 聊天短暂无响应。',
-      motive: '担心报告被驳回影响评优，但无直接掩盖延期需求。',
-      relations: ['与林澈多次争论是否公开原始数据', '能接触电子版但无资料室纸档权限']
-    },
-    {
-      id: 'c1-s3',
-      name: '顾衡',
-      role: '设备工程师',
-      portraitAsset: 'guwen',
-      identity: '负责机房和冷链设备巡检。',
-      relationToCase: '与报告内容关联较弱，掌握部分楼层通行。',
-      nightAction: '在机房处理报警，08:20 后进入电梯厅。',
-      suspiciousPoint: '机房日志有补录痕迹，但可由系统延迟写入解释。',
-      motive: '不希望设备异常被追责，可能回避问责但与报告失踪链条不闭合。',
-      relations: ['可证明宋遥在工位区在线', '与林澈工作往来较少']
-    }
+  title: '08:17 的空档',
+  summary: '发布会前的资料封套出现二次开启痕迹，监控与门禁记录存在时间断层。',
+  timeRange: '07:10 - 08:40',
+  location: '星港科技 12F 评审区',
+  introLines: [
+    '第一轮调查聚焦 review_room：desk 与 door_terminal。',
+    '矛盾成立后进入第二轮区域，最后完成关键对质。',
+    '阶段 6：进行时间验证并提交结案归纳。',
   ],
-  hotspots: [
-    {
-      id: 'c1-h1',
-      label: '会议室签到台',
-      region: '会议室入口',
-      sceneAsset: 'main',
-      description: '平板记录每次签到时间与设备编号。',
-      discoveryText: '林澈首次签到时间为 08:22，晚于其“08:10 在场”口供。',
-      clueIds: ['c1-c1'],
-      conversationIds: ['c1-talk-1']
-    },
-    {
-      id: 'c1-h2',
-      label: '走廊监控拼帧',
-      region: '盲区前后两节点',
-      sceneAsset: 'hallway',
-      description: '盲区前后摄像头时间轴可拼接。',
-      discoveryText: '08:16 林澈携文件袋进入盲区，08:19 从资料室方向返回。',
-      clueIds: ['c1-c2'],
-      conversationIds: ['c1-talk-2']
-    },
-    {
-      id: 'c1-h3',
-      label: '资料室门把与碎纸机',
-      region: '资料室内外',
-      sceneAsset: 'archive',
-      description: '门把纤维、碎纸屑均可送检。',
-      discoveryText: '发现与林澈外套同源纤维，以及报告封面同批纸纤维。',
-      clueIds: ['c1-c3', 'c1-c4'],
-      conversationIds: []
-    },
-    {
-      id: 'c1-h4',
-      label: '协作聊天与工位终端',
-      region: '工位区',
-      sceneAsset: 'main',
-      description: '聊天记录与终端键鼠活动可交叉验证。',
-      discoveryText: '宋遥 08:18 追问“原件谁拿走了”，终端日志显示其在席。',
-      clueIds: ['c1-c5'],
-      conversationIds: ['c1-talk-3']
-    },
-    {
-      id: 'c1-h5',
-      label: '电梯与门禁联动',
-      region: '楼层联动日志',
-      sceneAsset: 'hallway',
-      description: '可还原工牌跨层闭环路径。',
-      discoveryText: '08:18-08:21 林澈工牌形成“会议层→资料室→会议层”闭环。',
-      clueIds: ['c1-c6'],
-      conversationIds: [],
-      isOptional: true
-    }
-  ],
-  conversations: [
-    {
-      id: 'c1-talk-1',
-      suspectId: 'c1-s1',
-      title: '林澈：签到解释',
-      unlockedBy: 'c1-h1',
-      lines: ['“我在会场里忙，忘了先按签到。”', '“08:22 只是补签，不代表我不在。”']
-    },
-    {
-      id: 'c1-talk-2',
-      suspectId: 'c1-s1',
-      title: '林澈：盲区追问',
-      unlockedBy: 'c1-h2',
-      lines: ['“我只是去拿备用激光笔。”', '“文件袋？那是会议资料，没去资料室。”']
-    },
-    {
-      id: 'c1-talk-3',
-      suspectId: 'c1-s2',
-      title: '宋遥：工位口供',
-      unlockedBy: 'c1-h4',
-      lines: ['“我当时在导出图表，看到桌上原件突然不见才发消息。”', '“林澈回来后才说‘先别追问，会议要开始’。”']
-    }
-  ],
+  initialObjective: '第一轮调查：在 review_room 查明封套状态与门禁记录。',
   clues: [
-    {
-      id: 'c1-c1',
-      category: 'record',
-      title: '会议室签到平板',
-      summary: '林澈 08:22 才首次签到。',
-      detail: '签到日志不可回写，直接推翻“08:10 一直在会议室”的陈述。',
-      relatedSuspectIds: ['c1-s1'],
-      discoveredBy: 'c1-h1',
-      keyEvidenceCandidate: true
-    },
-    {
-      id: 'c1-c2',
-      category: 'surveillance',
-      title: '走廊监控节点摘要',
-      summary: '林澈在盲区前后携带文件袋往返。',
-      detail: '08:16 进入盲区时文件袋扁平，08:19 返回时袋体鼓起。',
-      relatedSuspectIds: ['c1-s1'],
-      discoveredBy: 'c1-h2',
-      keyEvidenceCandidate: true
-    },
-    {
-      id: 'c1-c3',
-      category: 'physical',
-      title: '资料室门把纤维',
-      summary: '门把检出与林澈外套同源纤维。',
-      detail: '采样时间 08:25，纤维新鲜附着，支持其近时段接触资料室。',
-      relatedSuspectIds: ['c1-s1'],
-      discoveredBy: 'c1-h3',
-      keyEvidenceCandidate: true
-    },
-    {
-      id: 'c1-c4',
-      category: 'physical',
-      title: '碎纸机纸纤维取样',
-      summary: '检出报告封面同批纸纤维。',
-      detail: '封面被处理但正文未完全销毁，符合“急促掩盖”特征。',
-      relatedSuspectIds: ['c1-s1'],
-      discoveredBy: 'c1-h3',
-      keyEvidenceCandidate: false
-    },
-    {
-      id: 'c1-c5',
-      category: 'testimony',
-      title: '协作聊天截取',
-      summary: '宋遥 08:18 报告原件失踪并上传空桌照片。',
-      detail: '聊天时间与终端活动一致，形成其在工位的不在场侧证。',
-      relatedSuspectIds: ['c1-s2'],
-      discoveredBy: 'c1-h4',
-      keyEvidenceCandidate: true
-    },
-    {
-      id: 'c1-c6',
-      category: 'extra',
-      title: '电梯-门禁联动日志',
-      summary: '林澈工牌形成跨层闭环路径。',
-      detail: '08:18 下行至资料室层，08:21 返回会议层，路径唯一且无代刷痕迹。',
-      relatedSuspectIds: ['c1-s1'],
-      discoveredBy: 'c1-h5',
-      keyEvidenceCandidate: true
-    }
+    { id: 'clue-envelope-opened', title: '封套二次开启痕迹', description: '封签边缘有新拉扯痕迹，封套并非“一直密封”。', source: 'review_room / desk', isKey: true, image: '/assets/cases/case-001/scenes/meeting_room.jpg' },
+    { id: 'clue-doorlog-0728', title: '07:28 门禁刷卡记录', description: '评审室门终端记录显示 07:28 有一次进入。', source: 'review_room / door_terminal', isKey: true, image: '/assets/cases/case-001/scenes/hallway.jpg' },
+    { id: 'clue-camera-gap-0731', title: '07:31 监控短暂空档', description: '走廊监控在 07:31 附近存在几分钟数据缺口。', source: 'hallway_monitor / monitor_node', isKey: true, image: '/assets/cases/case-001/scenes/archive_room.jpg' },
+    { id: 'clue-shred-label', title: '碎纸桶标签残片', description: '茶水间回收桶发现被撕碎的评审标签条。', source: 'pantry_bin / recycle_bin', isKey: true, image: '/assets/cases/case-001/scenes/meeting_room.jpg' },
   ],
-  timelineSlots: [
-    { id: 'c1-t1', label: '08:10-08:14', options: ['会议室', '工位区', '机房'] },
-    { id: 'c1-t2', label: '08:14-08:17', options: ['会议室', '监控盲区', '工位区', '机房'] },
-    { id: 'c1-t3', label: '08:17-08:22', options: ['会议室', '资料室', '电梯厅', '工位区'] }
+  testimonies: [
+    { id: 'testimony-zhoulan-sealed', title: '周岚：资料已提前封存', content: '周岚称资料前一晚已封存，之后没再碰过。', sourceCharacterId: 'zhoulan' },
+    { id: 'testimony-zhoulan-0728', title: '周岚：07:28 仅确认设备', content: '周岚承认 07:28 进入评审室，只看空调和投影，未碰资料。', sourceCharacterId: 'zhoulan' },
+    { id: 'testimony-chenxu-noentry', title: '陈序：会前未碰纸质资料', content: '陈序表示 08:05 到场后一直在外侧整理演示文件。', sourceCharacterId: 'chenxu' },
   ],
-  hints: ['林澈口供与客观记录存在首个矛盾点。', '把监控节点与跨层门禁拼成闭环。', '结论要同时解释“失踪”和“补签”。'],
-  solution: {
-    culpritId: 'c1-s1',
-    keyLieClueId: 'c1-c1',
-    methodKeywords: ['盲区', '资料室', '拿走', '补签', '闭环'],
-    evidenceChain: ['c1-c1', 'c1-c2', 'c1-c6'],
-    canonicalTimeline: ['08:16 林澈携文件袋离开会议区', '08:18 工牌抵达资料室层', '08:21 返回会议层并准备补签', '08:22 完成首次签到掩饰离场'],
-    truthSegments: [
-      '林澈利用 08:17 前后的监控盲区离开会议区，前往资料室转移原件。',
-      '返回后通过 08:22 补签制造“我一直在场”的叙事。',
-      '宋遥与顾衡虽各有瑕疵，但均无法构成完整“机会+动机+路径”三要素。'
+  characters: [
+    { id: 'zhoulan', name: '周岚', role: '项目行政负责人', avatar: '/assets/cases/case-001/characters/linlan.png', portrait: '/assets/cases/case-001/characters/linlan1.png', dialogueEntryNodeId: 'node-zhoulan-entry' },
+    { id: 'chenxu', name: '陈序', role: '演示工程师', avatar: '/assets/cases/case-001/characters/songhao.png', portrait: '/assets/cases/case-001/characters/guwen.png', dialogueEntryNodeId: 'node-chenxu-entry' },
+  ],
+  dialogueNodes: [
+    { id: 'node-zhoulan-entry', characterId: 'zhoulan', entry: true, emotion: 'neutral', lines: ['发布会资料昨晚就封好了，今天早上我只看了设备。'], effects: [{ type: 'addTestimony', testimonyId: 'testimony-zhoulan-sealed' }], options: [{ id: 'opt-zhoulan-0728', label: '门禁 07:28 的进入记录怎么解释？', to: 'node-zhoulan-0728', unlockCondition: ['clue:clue-doorlog-0728'] }] },
+    { id: 'node-zhoulan-0728', characterId: 'zhoulan', emotion: 'tense', lines: ['是我进去确认过空调和投影，但我没有动桌上的资料封套。'], effects: [{ type: 'addTestimony', testimonyId: 'testimony-zhoulan-0728' }], options: [{ id: 'opt-zhoulan-back', label: '回到主问题', to: 'node-zhoulan-entry' }] },
+    { id: 'node-chenxu-entry', characterId: 'chenxu', entry: true, emotion: 'neutral', lines: ['我 08:05 左右到场，在外面整理演示内容，没进评审室翻资料。'], effects: [{ type: 'addTestimony', testimonyId: 'testimony-chenxu-noentry' }], options: [{ id: 'opt-chenxu-side', label: '你在走廊看到谁最早到？', to: 'node-chenxu-side', unlockCondition: ['flag:first-contradiction-found'] }] },
+    { id: 'node-chenxu-side', characterId: 'chenxu', emotion: 'defensive', lines: ['我看到周岚比我更早在评审区附近，像是在确认什么。'], options: [{ id: 'opt-chenxu-back', label: '继续调查', to: 'node-chenxu-entry' }] },
+  ],
+  scenes: [
+    { id: 'review_room', label: '评审室', background: '/assets/cases/case-001/scenes/meeting_room.jpg', characterIds: ['zhoulan', 'chenxu'], hotspots: [
+      { id: 'desk', label: '桌面封套', sceneId: 'review_room', position: { x: 51, y: 67 }, positionMode: 'percent', onInteract: [{ type: 'addClue', clueId: 'clue-envelope-opened' }, { type: 'updateObjective', objective: '追问周岚“封存后未触碰”的说法。' }, { type: 'openOverlay', overlay: 'inspect' }] },
+      { id: 'door_terminal', label: '门口终端', sceneId: 'review_room', position: { x: 15, y: 55 }, positionMode: 'percent', onInteract: [{ type: 'addClue', clueId: 'clue-doorlog-0728' }, { type: 'updateObjective', objective: '已掌握 07:28 记录，立即追问周岚。' }, { type: 'openOverlay', overlay: 'inspect' }] },
+    ] },
+    { id: 'hallway_monitor', label: '走廊监控点', background: '/assets/cases/case-001/scenes/hallway.jpg', characterIds: ['chenxu'], unlockCondition: ['flag:first-contradiction-found'], hotspots: [
+      { id: 'monitor_node', label: '监控节点', sceneId: 'hallway_monitor', position: { x: 68, y: 41 }, positionMode: 'percent', unlockCondition: ['flag:first-contradiction-found'], onInteract: [{ type: 'addClue', clueId: 'clue-camera-gap-0731' }, { type: 'updateObjective', objective: '第二轮调查：补全 07:31 空档与碎纸来源。' }, { type: 'openOverlay', overlay: 'inspect' }] },
+    ] },
+    { id: 'pantry_bin', label: '茶水间回收区', background: '/assets/cases/case-001/scenes/archive_room.jpg', characterIds: ['zhoulan'], unlockCondition: ['flag:first-contradiction-found'], hotspots: [
+      { id: 'recycle_bin', label: '回收桶', sceneId: 'pantry_bin', position: { x: 36, y: 62 }, positionMode: 'percent', unlockCondition: ['flag:first-contradiction-found'], onInteract: [{ type: 'addClue', clueId: 'clue-shred-label' }, { type: 'updateObjective', objective: '已获得第二轮关键物证，准备进入后续阶段。' }, { type: 'openOverlay', overlay: 'inspect' }] },
+    ] },
+  ],
+  confrontation: {
+    target: 'zhoulan',
+    maxMistakes: 2,
+    rounds: [
+      { id: 'round-1', defense: '资料早就封好了，从昨晚到早上都没人动过。', correctEvidence: 'clue-envelope-opened', wrongFeedback: '周岚：这条证据不能证明我说错了，别混淆重点。', correctFeedback: '周岚：……封套边缘确实不像原封不动。' },
+      { id: 'round-2', defense: '07:28 进去只是检查设备，不涉及资料。', correctEvidence: 'clue-doorlog-0728', wrongFeedback: '周岚：你拿不出时间点证据，就别断言我进门行为。', correctFeedback: '周岚：门禁记录你都看到了……我确实是 07:28 进过门。' },
+      { id: 'round-3', defense: '即使进去过，也不代表我动过资料。', correctEvidence: 'clue-shred-label', wrongFeedback: '周岚：这不足以指向我处理过资料。', correctFeedback: '周岚：……那张标签是我撕掉的，我承认转移过结论页。' },
     ],
-    expectedTimeline: {
-      'c1-s1': { 'c1-t1': '会议室', 'c1-t2': '监控盲区', 'c1-t3': '资料室' },
-      'c1-s2': { 'c1-t1': '工位区', 'c1-t2': '工位区', 'c1-t3': '工位区' },
-      'c1-s3': { 'c1-t1': '机房', 'c1-t2': '机房', 'c1-t3': '电梯厅' }
-    }
-  }
+    onFail: '对质受挫：先回调查区补强证据，再回来施压。',
+    onSuccess: '周岚承认转移了结论页，进入时间验证与结案归纳。',
+  },
+  timelineSlots: [
+    { id: 't-0720', label: '07:20 资料送达 / 周岚负责封装', expectedClueId: 'clue-envelope-opened' },
+    { id: 't-0728', label: '07:28 周岚进入评审室', expectedClueId: 'clue-doorlog-0728' },
+    { id: 't-0731', label: '07:31–07:33 监控空窗', expectedClueId: 'clue-camera-gap-0731' },
+    { id: 't-0800', label: '08:00 发现结论页异常', expectedClueId: 'clue-shred-label' },
+    { id: 't-0805', label: '08:05 陈序到场', expectedClueId: 'clue-doorlog-0728' },
+    { id: 't-0817', label: '08:17 玩家介入', expectedClueId: 'clue-camera-gap-0731' },
+    { id: 't-0822', label: '08:22 最后期限', expectedClueId: 'clue-shred-label' },
+  ],
+  submission: {
+    suspects: ['周岚', '陈序'],
+    keyLies: ['“资料始终处于封存状态”', '“07:28 仅检查设备且未接触资料”'],
+    methods: ['进入评审室后拆封并抽走结论页，再伪装为封套完好', '仅通过口头误导拖延，无实体转移'],
+    destinations: ['茶水间回收桶（碎纸混入）', '走廊储物柜'],
+    correct: {
+      suspect: '周岚',
+      keyLie: '“资料始终处于封存状态”',
+      method: '进入评审室后拆封并抽走结论页，再伪装为封套完好',
+      destination: '茶水间回收桶（碎纸混入）',
+    },
+  },
+  truthReplay: [
+    { id: 'rp-1', title: '进入', summary: '周岚在 07:28 进入评审室，行为与其“未再接触”说法冲突。', timeAnchor: '07:28', evidenceIds: ['clue-doorlog-0728', 'testimony-zhoulan-0728'] },
+    { id: 'rp-2', title: '拆封', summary: '封套存在二次开启痕迹，说明资料被重新处理。', timeAnchor: '07:20-07:31', evidenceIds: ['clue-envelope-opened', 'testimony-zhoulan-sealed'] },
+    { id: 'rp-3', title: '转移', summary: '结论页被抽离并处理，残片最终进入回收桶。', timeAnchor: '07:31-08:00', evidenceIds: ['clue-shred-label'] },
+    { id: 'rp-4', title: '掩饰与拖延', summary: '监控空窗与口径反复用于拖延核验，直至 08:17 后被连续证据压实。', timeAnchor: '07:31-08:22', evidenceIds: ['clue-camera-gap-0731', 'testimony-chenxu-noentry'] },
+  ],
 };
