@@ -217,6 +217,7 @@ export type StageRuntimeState = {
 };
 
 export type StageSaveData = {
+  saveVersion: number;
   caseId: string;
   screen: Screen;
   timestamp: number;

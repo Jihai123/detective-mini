@@ -11,6 +11,7 @@ import {
 } from './types';
 
 const SAVE_KEY = 'detective-mini.stage1.save';
+export const SAVE_VERSION = 1 as const;
 
 function isScreen(value: string): value is Screen {
   return (SCREENS as readonly string[]).includes(value);
@@ -19,13 +20,15 @@ function isScreen(value: string): value is Screen {
 function isConfrontation(value: unknown): value is ConfrontationState {
   if (!value || typeof value !== 'object') return false;
   const parsed = value as Partial<ConfrontationState>;
-  return typeof parsed.roundIndex === 'number' && typeof parsed.mistakes === 'number' && typeof parsed.lastFeedback === 'string';
+  const validStatus = parsed.status === 'idle' || parsed.status === 'ongoing' || parsed.status === 'failed' || parsed.status === 'success';
+  return typeof parsed.roundIndex === 'number' && typeof parsed.mistakes === 'number' && typeof parsed.lastFeedback === 'string' && validStatus;
 }
 
 function isTimeline(value: unknown): value is TimelineState {
   if (!value || typeof value !== 'object') return false;
   const parsed = value as Partial<TimelineState>;
-  return typeof parsed.completed === 'boolean' && typeof parsed.placements === 'object' && Array.isArray(parsed.conflicts);
+  const validSelectedClueId = parsed.selectedClueId === null || typeof parsed.selectedClueId === 'string';
+  return typeof parsed.completed === 'boolean' && typeof parsed.placements === 'object' && Array.isArray(parsed.conflicts) && validSelectedClueId;
 }
 
 function isSubmission(value: unknown): value is SubmissionState {
@@ -47,6 +50,12 @@ export function loadStageSave(): StageSaveData | null {
 
   try {
     const p = JSON.parse(raw) as Partial<StageSaveData>;
+    // 当前策略：版本不匹配直接丢弃，不做迁移。未来有线上玩家时再引入 migrator。
+    if (typeof p.saveVersion !== 'number' || p.saveVersion !== SAVE_VERSION) {
+      console.info('[saveStore] save version mismatch, discarding old save');
+      localStorage.removeItem(SAVE_KEY);
+      return null;
+    }
     if (!p.caseId || typeof p.caseId !== 'string') return null;
     if (!p.screen || typeof p.screen !== 'string' || !isScreen(p.screen)) return null;
     if (!p.timestamp || typeof p.timestamp !== 'number') return null;
@@ -68,6 +77,7 @@ export function loadStageSave(): StageSaveData | null {
   }
 }
 
-export function saveStageState(input: StageSaveData): void {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(input));
+export function saveStageState(input: Omit<StageSaveData, 'saveVersion'>): void {
+  const payload = { ...input, saveVersion: SAVE_VERSION };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
 }
