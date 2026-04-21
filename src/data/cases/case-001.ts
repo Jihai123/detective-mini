@@ -13,10 +13,10 @@ export const case001Config: StageCaseConfig = {
   ],
   initialObjective: '第一轮调查：在 review_room 查明封套状态与门禁记录。',
   clues: [
-    { id: 'clue-envelope-opened', title: '封套二次开启痕迹', description: '封签边缘有新拉扯痕迹，封套并非“一直密封”。', source: 'review_room / desk', isKey: true, image: '/assets/cases/case-001/scenes/meeting_room.jpg' },
-    { id: 'clue-doorlog-0728', title: '07:28 门禁刷卡记录', description: '评审室门终端记录显示 07:28 有一次进入。', source: 'review_room / door_terminal', isKey: true, image: '/assets/cases/case-001/scenes/hallway.jpg' },
-    { id: 'clue-camera-gap-0731', title: '07:31 监控短暂空档', description: '走廊监控在 07:31 附近存在几分钟数据缺口。', source: 'hallway_monitor / monitor_node', isKey: true, image: '/assets/cases/case-001/scenes/archive_room.jpg' },
-    { id: 'clue-shred-label', title: '碎纸桶标签残片', description: '茶水间回收桶发现被撕碎的评审标签条。', source: 'pantry_bin / recycle_bin', isKey: true, image: '/assets/cases/case-001/scenes/meeting_room.jpg' },
+    { id: 'clue-envelope-opened', title: '封套二次开启痕迹', description: '封签边缘有新拉扯痕迹，封套并非”一直密封”。', source: 'review_room / desk', isKey: true, image: '/assets/cases/case-001/clues/clue-envelope-opened.jpg' },
+    { id: 'clue-doorlog-0728', title: '07:28 门禁刷卡记录', description: '评审室门终端记录显示 07:28 有一次进入。', source: 'review_room / door_terminal', isKey: true, image: '/assets/cases/case-001/clues/clue-doorlog-0728.jpg' },
+    { id: 'clue-camera-gap-0731', title: '07:31 监控短暂空档', description: '走廊监控在 07:31 附近存在几分钟数据缺口。', source: 'hallway_monitor / monitor_node', isKey: true, image: '/assets/cases/case-001/clues/clue-camera-gap-0731.jpg' },
+    { id: 'clue-shred-label', title: '碎纸桶标签残片', description: '茶水间回收桶发现被撕碎的评审标签条。', source: 'pantry_bin / recycle_bin', isKey: true, image: '/assets/cases/case-001/clues/clue-shred-label.jpg' },
   ],
   testimonies: [
     { id: 'testimony-zhoulan-sealed', title: '周岚：资料已提前封存', content: '周岚称资料前一晚已封存，之后没再碰过。', sourceCharacterId: 'zhoulan' },
@@ -24,8 +24,8 @@ export const case001Config: StageCaseConfig = {
     { id: 'testimony-chenxu-noentry', title: '陈序：会前未碰纸质资料', content: '陈序表示 08:05 到场后一直在外侧整理演示文件。', sourceCharacterId: 'chenxu' },
   ],
   characters: [
-    { id: 'zhoulan', name: '周岚', role: '项目行政负责人', avatar: '/assets/cases/case-001/characters/linlan.png', portrait: '/assets/cases/case-001/characters/linlan1.png', dialogueEntryNodeId: 'node-zhoulan-entry' },
-    { id: 'chenxu', name: '陈序', role: '演示工程师', avatar: '/assets/cases/case-001/characters/songhao.png', portrait: '/assets/cases/case-001/characters/guwen.png', dialogueEntryNodeId: 'node-chenxu-entry' },
+    { id: 'zhoulan', name: '周岚', role: '项目行政负责人', avatar: '/assets/cases/case-001/characters/zhoulan-avatar.png', portrait: '/assets/cases/case-001/characters/zhoulan-neutral.png', dialogueEntryNodeId: 'node-zhoulan-entry' },
+    { id: 'chenxu', name: '陈序', role: '演示工程师', avatar: '/assets/cases/case-001/characters/chenxu-avatar.png', portrait: '/assets/cases/case-001/characters/chenxu-neutral.png', dialogueEntryNodeId: 'node-chenxu-entry' },
   ],
   dialogueNodes: [
     { id: 'node-zhoulan-entry', characterId: 'zhoulan', entry: true, emotion: 'neutral', lines: ['发布会资料昨晚就封好了，今天早上我只看了设备。'], effects: [{ type: 'addTestimony', testimonyId: 'testimony-zhoulan-sealed' }], options: [{ id: 'opt-zhoulan-0728', label: '门禁 07:28 的进入记录怎么解释？', to: 'node-zhoulan-0728', unlockCondition: ['clue:clue-doorlog-0728'] }] },
@@ -34,14 +34,14 @@ export const case001Config: StageCaseConfig = {
     { id: 'node-chenxu-side', characterId: 'chenxu', emotion: 'defensive', lines: ['我看到周岚比我更早在评审区附近，像是在确认什么。'], options: [{ id: 'opt-chenxu-back', label: '继续调查', to: 'node-chenxu-entry' }] },
   ],
   scenes: [
-    { id: 'review_room', label: '评审室', background: '/assets/cases/case-001/scenes/meeting_room.jpg', characterIds: ['zhoulan', 'chenxu'], hotspots: [
+    { id: 'review_room', label: '评审室', background: '/assets/cases/case-001/scenes/review_room.jpg', characterIds: ['zhoulan', 'chenxu'], hotspots: [
       { id: 'desk', label: '桌面封套', sceneId: 'review_room', position: { x: 51, y: 67 }, positionMode: 'percent', onInteract: [{ type: 'addClue', clueId: 'clue-envelope-opened' }, { type: 'updateObjective', objective: '追问周岚“封存后未触碰”的说法。' }, { type: 'openOverlay', overlay: 'inspect' }] },
       { id: 'door_terminal', label: '门口终端', sceneId: 'review_room', position: { x: 15, y: 55 }, positionMode: 'percent', onInteract: [{ type: 'addClue', clueId: 'clue-doorlog-0728' }, { type: 'updateObjective', objective: '已掌握 07:28 记录，立即追问周岚。' }, { type: 'openOverlay', overlay: 'inspect' }] },
     ] },
-    { id: 'hallway_monitor', label: '走廊监控点', background: '/assets/cases/case-001/scenes/hallway.jpg', characterIds: ['chenxu'], unlockCondition: ['flag:first-contradiction-found'], hotspots: [
+    { id: 'hallway_monitor', label: '走廊监控点', background: '/assets/cases/case-001/scenes/hallway_monitor.jpg', characterIds: ['chenxu'], unlockCondition: ['flag:first-contradiction-found'], hotspots: [
       { id: 'monitor_node', label: '监控节点', sceneId: 'hallway_monitor', position: { x: 68, y: 41 }, positionMode: 'percent', unlockCondition: ['flag:first-contradiction-found'], onInteract: [{ type: 'addClue', clueId: 'clue-camera-gap-0731' }, { type: 'updateObjective', objective: '第二轮调查：补全 07:31 空档与碎纸来源。' }, { type: 'openOverlay', overlay: 'inspect' }] },
     ] },
-    { id: 'pantry_bin', label: '茶水间回收区', background: '/assets/cases/case-001/scenes/archive_room.jpg', characterIds: ['zhoulan'], unlockCondition: ['flag:first-contradiction-found'], hotspots: [
+    { id: 'pantry_bin', label: '茶水间回收区', background: '/assets/cases/case-001/scenes/pantry_bin.jpg', characterIds: ['zhoulan'], unlockCondition: ['flag:first-contradiction-found'], hotspots: [
       { id: 'recycle_bin', label: '回收桶', sceneId: 'pantry_bin', position: { x: 36, y: 62 }, positionMode: 'percent', unlockCondition: ['flag:first-contradiction-found'], onInteract: [{ type: 'addClue', clueId: 'clue-shred-label' }, { type: 'updateObjective', objective: '已获得第二轮关键物证，准备进入后续阶段。' }, { type: 'openOverlay', overlay: 'inspect' }] },
     ] },
   ],
