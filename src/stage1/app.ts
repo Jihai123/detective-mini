@@ -769,44 +769,46 @@ export class StageOneApp {
 
   private renderIntroBody(): string {
     return `
-      <section class="briefing-shell">
-        <header class="briefing-header">
-          <h1>08:17 的空档</h1>
-          <p>北港生物研发中心 6 层 · 07:20 - 08:22</p>
-        </header>
-        <section class="briefing-layout">
-          <article class="briefing-copy">
-            <section>
-              <h2>案件摘要</h2>
-              <p>评审会开始前，唯一纸质结论页失踪。</p>
-            </section>
-            <section>
-              <h2>接案简报</h2>
-              <p>07:20 资料送达，08:00 前结论页失踪。</p><p>外部评委已在路上，你只有一轮窗口锁定接触链。</p>
-            </section>
-            <section>
-              <h2>涉案人物概览</h2>
-              <ul>
-                <li>周岚：行政助理，最后接触资料者</li>
-                <li>陈序：产品经理，提供侧面信息</li>
-              </ul>
-            </section>
-            <section>
-              <h2>当前调查目标</h2>
-              <p>先确认谁在会前接触过结论页。</p>
-            </section>
-          </article>
-          <aside class="briefing-visual" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg'), url('/assets/cases/case-001/scenes/review_room.jpg')">
-            <div class="briefing-visual-overlay">
-              <p>CASE-001 BRIEFING</p>
-            </div>
-          </aside>
+      <div class="screen-scrollable">
+        <section class="briefing-shell">
+          <header class="briefing-header">
+            <h1>08:17 的空档</h1>
+            <p>北港生物研发中心 6 层 · 07:20 - 08:22</p>
+          </header>
+          <section class="briefing-layout">
+            <article class="briefing-copy">
+              <section>
+                <h2>案件摘要</h2>
+                <p>评审会开始前，唯一纸质结论页失踪。</p>
+              </section>
+              <section>
+                <h2>接案简报</h2>
+                <p>07:20 资料送达，08:00 前结论页失踪。</p><p>外部评委已在路上，你只有一轮窗口锁定接触链。</p>
+              </section>
+              <section>
+                <h2>涉案人物概览</h2>
+                <ul>
+                  <li>周岚：行政助理，最后接触资料者</li>
+                  <li>陈序：产品经理，提供侧面信息</li>
+                </ul>
+              </section>
+              <section>
+                <h2>当前调查目标</h2>
+                <p>先确认谁在会前接触过结论页。</p>
+              </section>
+            </article>
+            <aside class="briefing-visual" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg'), url('/assets/cases/case-001/scenes/review_room.jpg')">
+              <div class="briefing-visual-overlay">
+                <p>CASE-001 BRIEFING</p>
+              </div>
+            </aside>
+          </section>
+          <footer class="briefing-actions">
+            <button class="ghost-btn" data-screen="archive">返回档案室</button>
+            <button class="primary-btn briefing-enter-btn" data-screen="investigation">进入调查</button>
+          </footer>
         </section>
-        <footer class="briefing-actions">
-          <button class="ghost-btn" data-screen="archive">返回档案室</button>
-          <button class="primary-btn briefing-enter-btn" data-screen="investigation">进入调查</button>
-        </footer>
-      </section>
+      </div>
     `;
   }
 
@@ -819,6 +821,8 @@ export class StageOneApp {
     const updatedAt = new Date(this.state.updatedAt).toLocaleString('zh-CN', { hour12: false });
     const archiveOrIntro = this.state.screen === 'archive' || this.state.screen === 'intro';
     if (this.state.screen === 'investigation') this.syncAmbienceForScene(this.state.currentSceneId);
+
+    const savedScrollTop = this.root.querySelector<HTMLElement>('.screen-scrollable')?.scrollTop ?? 0;
 
     this.root.innerHTML = `
       <main class="stage-shell">
@@ -848,6 +852,11 @@ export class StageOneApp {
       </main>`;
 
     this.bindEvents();
+
+    if (savedScrollTop > 0) {
+      const newScrollable = this.root.querySelector<HTMLElement>('.screen-scrollable');
+      if (newScrollable) newScrollable.scrollTop = savedScrollTop;
+    }
   }
 
   private getScreenBody(background: string): string {
