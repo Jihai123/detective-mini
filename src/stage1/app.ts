@@ -23,22 +23,6 @@ import type {
 const SCREEN_SEQUENCE: Screen[] = ['archive', 'intro', 'investigation'];
 const ENGINE_EVENT_NAME = 'DETECTIVE_ENGINE_EVENT';
 const DEV_MODE = window.location.search.includes('dev=1');
-const PRIMARY_SCENE_BACKGROUNDS: Record<string, string> = {
-  review_room: '/assets/cases/case-001/scenes/review_room.jpg',
-  hallway_monitor: '/assets/cases/case-001/scenes/hallway_monitor.jpg',
-  pantry_bin: '/assets/cases/case-001/scenes/pantry_bin.jpg',
-};
-const CHARACTER_VISUAL_OVERRIDES: Record<string, { avatar: string; portrait: string }> = {
-  zhoulan: {
-    avatar: '/assets/cases/case-001/characters/zhoulan-avatar.png',
-    portrait: '/assets/cases/case-001/characters/zhoulan-neutral.png',
-  },
-  chenxu: {
-    avatar: '/assets/cases/case-001/characters/chenxu-avatar.png',
-    portrait: '/assets/cases/case-001/characters/chenxu-neutral.png',
-  },
-};
-
 
 const AMBIENCE_TRACKS: Record<string, string> = {
   review_room: '/assets/cases/case-001/audio/room_loop.mp3',
@@ -559,14 +543,12 @@ export class StageOneApp {
     return { hasNew, label: hasNew ? '可追问 / 新内容' : '已读' };
   }
 
-  private getSceneBackground(sceneId: string, fallback: string): string {
-    return PRIMARY_SCENE_BACKGROUNDS[sceneId] ?? fallback;
+  private getSceneBackground(_sceneId: string, fallback: string): string {
+    return fallback;
   }
 
   private getCharacterVisual(character?: CharacterConfig): { avatar: string; portrait: string } | null {
     if (!character) return null;
-    const override = CHARACTER_VISUAL_OVERRIDES[character.id];
-    if (override) return override;
     return { avatar: character.avatar, portrait: character.portrait };
   }
 
