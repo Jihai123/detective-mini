@@ -624,35 +624,37 @@ export class StageOneApp {
   private renderDeductionBody(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
     return `
-      <section class="screen-panel">
-        <h2>时间验证</h2>
-        <p>先点击关键线索，再点击时间槽位放置。错误槽位会显示冲突提示。</p>
-        <div class="evidence-grid">
-          ${this.state.inventory
-            .filter((c) => c.isKey)
-            .map((c) => `<button class="evidence-card ${this.state.timeline.selectedClueId === c.id ? 'is-active' : ''}" data-select-timeline-clue="${c.id}"><strong>${c.title}</strong><small>${c.id}</small></button>`)
-            .join('')}
-        </div>
-        <div class="timeline-grid">
-          ${caseConfig.timelineSlots
-            .map((slot) => {
-              const placed = this.state.timeline.placements[slot.id];
-              const conflict = this.state.timeline.conflicts.includes(slot.id);
-              return `<button class="timeline-slot ${conflict ? 'is-conflict' : ''}" data-place-slot="${slot.id}"><strong>${slot.label}</strong><small>${placed ?? '点击放置线索'}</small></button>`;
-            })
-            .join('')}
-        </div>
-        <p>${this.state.timeline.completed ? '行为链闭合完成。' : '尚未闭合关键行为链。'}</p>
-      </section>
-      <section class="screen-panel">
-        <h2>结案归纳提交</h2>
-        <p>以卡片化选择提交，不是普通表单。</p>
-        ${this.renderSubmissionOptions('suspect', caseConfig.submission.suspects)}
-        ${this.renderSubmissionOptions('keyLie', caseConfig.submission.keyLies)}
-        ${this.renderSubmissionOptions('method', caseConfig.submission.methods)}
-        ${this.renderSubmissionOptions('destination', caseConfig.submission.destinations)}
-        <button class="primary-btn" data-submit-case="true" ${this.state.timeline.completed ? '' : 'disabled'}>提交结案归纳</button>
-      </section>
+      <div class="screen-scrollable">
+        <section class="screen-panel">
+          <h2>时间验证</h2>
+          <p>先点击关键线索，再点击时间槽位放置。错误槽位会显示冲突提示。</p>
+          <div class="evidence-grid">
+            ${this.state.inventory
+              .filter((c) => c.isKey)
+              .map((c) => `<button class="evidence-card ${this.state.timeline.selectedClueId === c.id ? 'is-active' : ''}" data-select-timeline-clue="${c.id}"><strong>${c.title}</strong><small>${c.id}</small></button>`)
+              .join('')}
+          </div>
+          <div class="timeline-grid">
+            ${caseConfig.timelineSlots
+              .map((slot) => {
+                const placed = this.state.timeline.placements[slot.id];
+                const conflict = this.state.timeline.conflicts.includes(slot.id);
+                return `<button class="timeline-slot ${conflict ? 'is-conflict' : ''}" data-place-slot="${slot.id}"><strong>${slot.label}</strong><small>${placed ?? '点击放置线索'}</small></button>`;
+              })
+              .join('')}
+          </div>
+          <p>${this.state.timeline.completed ? '行为链闭合完成。' : '尚未闭合关键行为链。'}</p>
+        </section>
+        <section class="screen-panel">
+          <h2>结案归纳提交</h2>
+          <p>以卡片化选择提交，不是普通表单。</p>
+          ${this.renderSubmissionOptions('suspect', caseConfig.submission.suspects)}
+          ${this.renderSubmissionOptions('keyLie', caseConfig.submission.keyLies)}
+          ${this.renderSubmissionOptions('method', caseConfig.submission.methods)}
+          ${this.renderSubmissionOptions('destination', caseConfig.submission.destinations)}
+          <button class="primary-btn" data-submit-case="true" ${this.state.timeline.completed ? '' : 'disabled'}>提交结案归纳</button>
+        </section>
+      </div>
     `;
   }
 
@@ -667,19 +669,21 @@ export class StageOneApp {
     const result = this.state.result ?? this.computeResult();
     const correct = caseConfig.submission.correct;
     return `
-      <section class="screen-panel result-shell">
-        <h2>案件归档</h2>
-        <div class="result-rating"><span>${result.rating}</span><small>${result.score} 分</small></div>
-        <p class="result-truth">你已锁定真相核心：${correct.suspect}在会前拆封并转移结论页。</p>
-        <div class="result-chain"><h3>证据链</h3><ol><li>封套二次开启痕迹</li><li>07:28 门禁进入</li><li>碎纸残片落点</li></ol></div>
-        <div class="result-actions"><button class="ghost-btn" data-screen="archive">返回档案室</button><button class="primary-btn" data-restart-case="true">重开案件</button></div>
-      </section>
-      <section class="screen-panel">
-        <h2>真相回放</h2>
-        ${caseConfig.truthReplay
-          .map((seg) => `<article class="replay-segment"><h3>${seg.timeAnchor} · ${seg.title}</h3><p>${seg.summary}</p></article>`)
-          .join('')}
-      </section>
+      <div class="screen-scrollable">
+        <section class="screen-panel result-shell">
+          <h2>案件归档</h2>
+          <div class="result-rating"><span>${result.rating}</span><small>${result.score} 分</small></div>
+          <p class="result-truth">你已锁定真相核心：${correct.suspect}在会前拆封并转移结论页。</p>
+          <div class="result-chain"><h3>证据链</h3><ol><li>封套二次开启痕迹</li><li>07:28 门禁进入</li><li>碎纸残片落点</li></ol></div>
+          <div class="result-actions"><button class="ghost-btn" data-screen="archive">返回档案室</button><button class="primary-btn" data-restart-case="true">重开案件</button></div>
+        </section>
+        <section class="screen-panel">
+          <h2>真相回放</h2>
+          ${caseConfig.truthReplay
+            .map((seg) => `<article class="replay-segment"><h3>${seg.timeAnchor} · ${seg.title}</h3><p>${seg.summary}</p></article>`)
+            .join('')}
+        </section>
+      </div>
     `;
   }
 

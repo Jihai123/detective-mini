@@ -30,6 +30,8 @@ body {
 .screen-tag { display: inline-flex; width: fit-content; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(129,157,255,.45); color: #9cb5ff; font-size: 12px; margin-bottom: 14px; }
 .screen-panel { border: 1px solid rgba(153,175,255,.24); border-radius: 10px; padding: 16px; background: rgba(4,8,20,.5); }
 .screen-panel p, .screen-panel li { line-height: 1.6; color: #cad6ff; }
+/* 给内容超出视口的 screen 提供独立滚动容器（如 deduction / result）。investigation 等需要固定画布的 screen 不要用。 */
+.screen-scrollable { width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding-right: 6px; }
 
 .archive-shell {
   min-height: 760px;
