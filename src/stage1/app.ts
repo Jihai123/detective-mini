@@ -626,9 +626,14 @@ export class StageOneApp {
     const round = caseConfig.confrontation.rounds[this.state.confrontation.roundIndex];
     const remain = caseConfig.confrontation.maxMistakes - this.state.confrontation.mistakes;
     const targetVisual = this.getCharacterVisual(target);
-    const reducedEvidence = this.state.inventory
-      .filter((item) => item.id === round?.correctEvidence || item.isKey)
-      .slice(0, 3);
+    const correctCard = this.state.inventory.find((item) => item.id === round?.correctEvidence);
+    if (!correctCard && round?.correctEvidence) {
+      console.warn(`[confrontation] correctEvidence "${round.correctEvidence}" not found in inventory`);
+    }
+    const distractors = this.state.inventory
+      .filter((item) => item.isKey && item.id !== round?.correctEvidence)
+      .slice(0, 2);
+    const reducedEvidence = correctCard ? [correctCard, ...distractors] : distractors;
     return `<section class="confrontation-shell"><header class="confront-head"><h2>关键对质</h2><p>回合 ${Math.min(this.state.confrontation.roundIndex + 1, caseConfig.confrontation.rounds.length)} / ${caseConfig.confrontation.rounds.length} ｜ 剩余容错 ${remain}</p></header><div class="confront-stage"><img src="${targetVisual?.portrait ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png'}" alt="${target?.name ?? '目标'}" class="confront-portrait" /><article class="defense-line">${round?.defense ?? '对质结束'}</article></div><p class="confront-feedback">${this.state.confrontation.lastFeedback}</p><h3>出示证据</h3><div class="evidence-grid">${reducedEvidence
       .map((item) => `<button class="evidence-card" data-present-evidence="${item.id}"><strong>${item.title}</strong><small>${item.source.split(' / ')[0]}</small></button>`)
       .join('')}</div></section>`;
