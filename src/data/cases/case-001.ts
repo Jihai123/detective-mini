@@ -22,16 +22,18 @@ export const case001Config: StageCaseConfig = {
     { id: 'testimony-zhoulan-sealed', title: '周岚：资料已提前封存', content: '周岚称资料前一晚已封存，之后没再碰过。', sourceCharacterId: 'zhoulan' },
     { id: 'testimony-zhoulan-0728', title: '周岚：07:28 仅确认设备', content: '周岚承认 07:28 进入评审室，只看空调和投影，未碰资料。', sourceCharacterId: 'zhoulan' },
     { id: 'testimony-chenxu-noentry', title: '陈序：会前未碰纸质资料', content: '陈序表示 08:05 到场后一直在外侧整理演示文件。', sourceCharacterId: 'chenxu' },
+    { id: 'testimony-chenxu-witness', title: '陈序：目击周岚前往茶水间', content: '陈序证实在 07:31 前后，亲眼看到周岚从评审区方向走向茶水间，手中似乎拿着东西。', sourceCharacterId: 'chenxu' },
   ],
   characters: [
-    { id: 'zhoulan', name: '周岚', role: '项目行政负责人', avatar: '/assets/cases/case-001/characters/zhoulan-avatar.png', portrait: '/assets/cases/case-001/characters/zhoulan-neutral.png', dialogueEntryNodeId: 'node-zhoulan-entry' },
-    { id: 'chenxu', name: '陈序', role: '演示工程师', avatar: '/assets/cases/case-001/characters/chenxu-avatar.png', portrait: '/assets/cases/case-001/characters/chenxu-neutral.png', dialogueEntryNodeId: 'node-chenxu-entry' },
+    { id: 'zhoulan', name: '周岚', role: '项目行政负责人', avatar: '/assets/cases/case-001/characters/zhoulan-avatar.png', portrait: '/assets/cases/case-001/characters/zhoulan-neutral.png', emotionPortraits: { neutral: '/assets/cases/case-001/characters/zhoulan-neutral.png', defensive: '/assets/cases/case-001/characters/zhoulan-defensive.png', collapse: '/assets/cases/case-001/characters/zhoulan-collapse.png' }, dialogueEntryNodeId: 'node-zhoulan-entry' },
+    { id: 'chenxu', name: '陈序', role: '演示工程师', avatar: '/assets/cases/case-001/characters/chenxu-avatar.png', portrait: '/assets/cases/case-001/characters/chenxu-neutral.png', emotionPortraits: { neutral: '/assets/cases/case-001/characters/chenxu-neutral.png', serious: '/assets/cases/case-001/characters/chenxu-serious.png' }, dialogueEntryNodeId: 'node-chenxu-entry' },
   ],
   dialogueNodes: [
     { id: 'node-zhoulan-entry', characterId: 'zhoulan', entry: true, emotion: 'neutral', lines: ['发布会资料昨晚就封好了，今天早上我只看了设备。'], effects: [{ type: 'addTestimony', testimonyId: 'testimony-zhoulan-sealed' }], options: [{ id: 'opt-zhoulan-0728', label: '门禁 07:28 的进入记录怎么解释？', to: 'node-zhoulan-0728', unlockCondition: ['clue:clue-doorlog-0728'] }] },
     { id: 'node-zhoulan-0728', characterId: 'zhoulan', emotion: 'tense', lines: ['是我进去确认过空调和投影，但我没有动桌上的资料封套。'], effects: [{ type: 'addTestimony', testimonyId: 'testimony-zhoulan-0728' }], options: [{ id: 'opt-zhoulan-back', label: '回到主问题', to: 'node-zhoulan-entry' }] },
     { id: 'node-chenxu-entry', characterId: 'chenxu', entry: true, emotion: 'neutral', lines: ['我 08:05 左右到场，在外面整理演示内容，没进评审室翻资料。'], effects: [{ type: 'addTestimony', testimonyId: 'testimony-chenxu-noentry' }], options: [{ id: 'opt-chenxu-side', label: '你在走廊看到谁最早到？', to: 'node-chenxu-side', unlockCondition: ['flag:first-contradiction-found'] }] },
-    { id: 'node-chenxu-side', characterId: 'chenxu', emotion: 'defensive', lines: ['我看到周岚比我更早在评审区附近，像是在确认什么。'], options: [{ id: 'opt-chenxu-back', label: '继续调查', to: 'node-chenxu-entry' }] },
+    { id: 'node-chenxu-side', characterId: 'chenxu', emotion: 'defensive', lines: ['我看到周岚比我更早在评审区附近，像是在确认什么。'], options: [{ id: 'opt-chenxu-side-witness', label: '你看到她去了哪里？', to: 'node-chenxu-witness', unlockCondition: ['clue:clue-camera-gap-0731'] }, { id: 'opt-chenxu-back', label: '继续调查', to: 'node-chenxu-entry' }] },
+    { id: 'node-chenxu-witness', characterId: 'chenxu', emotion: 'serious', lines: ['……等等，我想起来了。07:31 左右，我确实看到周岚从评审区方向往茶水间走去，手里好像拿着什么东西。'], effects: [{ type: 'addTestimony', testimonyId: 'testimony-chenxu-witness' }], options: [{ id: 'opt-chenxu-witness-back', label: '我记下来了', to: 'node-chenxu-entry' }] },
   ],
   scenes: [
     { id: 'review_room', label: '评审室', background: '/assets/cases/case-001/scenes/review_room.jpg', characterIds: ['zhoulan', 'chenxu'], hotspots: [
@@ -47,13 +49,44 @@ export const case001Config: StageCaseConfig = {
   ],
   confrontation: {
     target: 'zhoulan',
-    maxMistakes: 2,
+    maxMistakesPerRound: 2,
     rounds: [
-      { id: 'round-1', defense: '资料早就封好了，从昨晚到早上都没人动过。', correctEvidence: 'clue-envelope-opened', wrongFeedback: '周岚：这条证据不能证明我说错了，别混淆重点。', correctFeedback: '周岚：……封套边缘确实不像原封不动。' },
-      { id: 'round-2', defense: '07:28 进去只是检查设备，不涉及资料。', correctEvidence: 'clue-doorlog-0728', wrongFeedback: '周岚：你拿不出时间点证据，就别断言我进门行为。', correctFeedback: '周岚：门禁记录你都看到了……我确实是 07:28 进过门。' },
-      { id: 'round-3', defense: '即使进去过，也不代表我动过资料。', correctEvidence: 'clue-shred-label', wrongFeedback: '周岚：这不足以指向我处理过资料。', correctFeedback: '周岚：……那张标签是我撕掉的，我承认转移过结论页。' },
+      {
+        id: 'round-1',
+        sentences: [
+          { id: 'r1-s1', text: '资料昨晚封存之后，我就没有任何理由再返回评审室。', contradictable: false },
+          { id: 'r1-s2', text: '那份封套从昨晚到今早，一直保持完好的密封状态，根本没人动过。', contradictable: true, counterEvidenceId: 'clue-envelope-opened' },
+        ],
+        enterEmotion: 'neutral',
+        onCorrectEmotion: 'defensive',
+        onCorrectFeedback: '周岚：……封套边缘确实不像原封不动。',
+        onWrongFeedback: '周岚：这条证据不能证明我说错了，别混淆重点。',
+      },
+      {
+        id: 'round-2',
+        sentences: [
+          { id: 'r2-s1', text: '07:28 那会儿，我在走廊等候区，根本没有进入过评审室。', contradictable: true, counterEvidenceId: 'clue-doorlog-0728' },
+          { id: 'r2-s2', text: '我的门禁权限在那个时间段根本没有激活记录。', contradictable: false },
+        ],
+        enterEmotion: 'defensive',
+        onCorrectEmotion: 'defensive',
+        onCorrectFeedback: '周岚：门禁记录你都看到了……我确实是 07:28 进过门。',
+        onWrongFeedback: '周岚：你拿不出时间点证据，就别断言我进门行为。',
+      },
+      {
+        id: 'round-3',
+        sentences: [
+          { id: 'r3-s1', text: '进评审室检查设备是职责所在，但整个过程我没有接触任何资料页面。', contradictable: false },
+          { id: 'r3-s2', text: '那些评审标签条一直完整贴在封套上，我从来没有撕过任何东西。', contradictable: true, counterEvidenceId: 'clue-shred-label' },
+        ],
+        enterEmotion: 'defensive',
+        onCorrectEmotion: 'collapse',
+        onCorrectFeedback: '周岚：……那张标签是我撕掉的，我承认转移过结论页。',
+        onWrongFeedback: '周岚：这不足以指向我处理过资料。',
+        onRoundLost: '周岚：你没有足够的证据，这件事不能继续追问。',
+      },
     ],
-    onFail: '对质受挫：先回调查区补强证据，再回来施压。',
+    onAllLost: '对质受挫：先回调查区补强证据，再回来施压。',
     onSuccess: '周岚承认转移了结论页，进入时间验证与结案归纳。',
   },
   timelineSlots: [

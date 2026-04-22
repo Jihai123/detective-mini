@@ -11,7 +11,7 @@ import {
 } from './types';
 
 const SAVE_KEY = 'detective-mini.stage1.save';
-export const SAVE_VERSION = 1 as const;
+export const SAVE_VERSION = 2 as const;
 
 function isScreen(value: string): value is Screen {
   return (SCREENS as readonly string[]).includes(value);
@@ -20,8 +20,10 @@ function isScreen(value: string): value is Screen {
 function isConfrontation(value: unknown): value is ConfrontationState {
   if (!value || typeof value !== 'object') return false;
   const parsed = value as Partial<ConfrontationState>;
-  const validStatus = parsed.status === 'idle' || parsed.status === 'ongoing' || parsed.status === 'failed' || parsed.status === 'success';
-  return typeof parsed.roundIndex === 'number' && typeof parsed.mistakes === 'number' && typeof parsed.lastFeedback === 'string' && validStatus;
+  const validStatus = parsed.status === 'idle' || parsed.status === 'ongoing' || parsed.status === 'success' || parsed.status === 'allLost';
+  const validSelectedSentenceId = parsed.selectedSentenceId === null || typeof parsed.selectedSentenceId === 'string';
+  const validRoundResults = Array.isArray(parsed.roundResults) && parsed.roundResults.every((r) => r === 'pending' || r === 'won' || r === 'lost');
+  return typeof parsed.roundIndex === 'number' && typeof parsed.mistakesInCurrentRound === 'number' && validRoundResults && validSelectedSentenceId && validStatus && typeof parsed.lastFeedback === 'string';
 }
 
 function isTimeline(value: unknown): value is TimelineState {

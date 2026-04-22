@@ -41,7 +41,7 @@ export function validateCaseConfig(input: unknown): asserts input is StageCaseCo
 
   c.dialogueNodes.forEach((node) => validateDialogueNode(node, c.id!));
   c.confrontation.rounds.forEach((round) => {
-    if (!round.id || !round.defense || !round.correctEvidence) throw new Error(`${c.id}: confrontation round 字段缺失`);
+    if (!round.id || !Array.isArray(round.sentences) || round.sentences.length === 0) throw new Error(`${c.id}: confrontation round 字段缺失`);
   });
 }
 
