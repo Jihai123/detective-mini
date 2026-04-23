@@ -380,7 +380,7 @@ export class StageOneApp {
       roundResults: caseConfig.confrontation.rounds.map(() => 'pending' as const),
       selectedSentenceId: null,
       status: 'ongoing',
-      lastFeedback: '先点击周岚的某句证词，再出示证据驳斥。',
+      lastFeedback: '审视周岚的每一句话。找出自相矛盾的那一句。',
     };
     this.persistState();
     this.render();
@@ -393,11 +393,11 @@ export class StageOneApp {
     const sentence = round.sentences.find((s) => s.id === sentenceId);
     if (!sentence) return;
     if (!sentence.contradictable) {
-      this.state.confrontation = { ...this.state.confrontation, lastFeedback: '这句话暂时无从反驳，换一句试试。' };
+      this.state.confrontation = { ...this.state.confrontation, lastFeedback: '这句话听起来没问题……' };
       this.render();
       return;
     }
-    this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: sentenceId, lastFeedback: '已锁定这句证词——现在出示能驳斥它的证据。' };
+    this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: sentenceId, lastFeedback: '这一句有问题。用证据证明她在说谎。' };
     this.render();
   }
 
@@ -409,14 +409,14 @@ export class StageOneApp {
 
     const selectedId = this.state.confrontation.selectedSentenceId;
     if (!selectedId) {
-      this.state.confrontation = { ...this.state.confrontation, lastFeedback: '请先点击周岚的一句证词，再出示证据驳斥。' };
+      this.state.confrontation = { ...this.state.confrontation, lastFeedback: '先找出她哪句话有问题——证据才能派上用场。' };
       this.render();
       return;
     }
 
     const sentence = round.sentences.find((s) => s.id === selectedId);
     if (!sentence || !sentence.contradictable) {
-      this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: null, lastFeedback: '这句话无从反驳，请重新选择证词。' };
+      this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: null, lastFeedback: '这句话听起来没问题……换一句看看。' };
       this.render();
       return;
     }
@@ -467,21 +467,46 @@ export class StageOneApp {
   private handleConfrontationEnd(): void {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const conf = caseConfig.confrontation;
-    const allLost = this.state.confrontation.roundResults.every((r) => r === 'lost');
+    const roundResults = this.state.confrontation.roundResults;
     const lastRoundIndex = conf.rounds.length - 1;
+    const allLost = roundResults.every((r) => r === 'lost');
+    const hasLost = roundResults.some((r) => r === 'lost');
+    const lastRound = conf.rounds[lastRoundIndex];
+    const lastRoundWon = roundResults[lastRoundIndex] === 'won';
+
     if (allLost) {
-      this.state.confrontation = { ...this.state.confrontation, roundIndex: lastRoundIndex, status: 'allLost', lastFeedback: conf.onAllLost ?? '对质全部失败，回去补强证据。' };
+      this.state.confrontation = {
+        ...this.state.confrontation,
+        roundIndex: lastRoundIndex,
+        status: 'allLost',
+        lastFeedback: conf.onAllLost ?? '对质全部失败，回去补强证据。',
+      };
       this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
       this.state.hintCount += 1;
       this.primaryNotice = '关键对质全线受挫：先补齐证据再回来。';
       this.state.screen = 'investigation';
       this.state.objective = '对质受挫，回调查区补证据后再战。';
-    } else {
-      this.state.confrontation = { ...this.state.confrontation, roundIndex: lastRoundIndex, status: 'success', lastFeedback: conf.onSuccess };
-      this.state.flags = { ...this.state.flags, 'confrontation-complete': true };
-      this.state.objective = '对质完成，进入时间验证并提交结案归纳。';
-      this.state.screen = 'deduction';
+      return;
     }
+
+    let finalFeedback: string;
+    if (hasLost) {
+      finalFeedback = '你击穿了她最核心的谎言，但有些细节没能拿下。或许那些没被揭穿的部分，正藏着更多东西。';
+    } else {
+      finalFeedback = lastRoundWon
+        ? `${lastRound.onCorrectFeedback}\n\n${conf.onSuccess}`
+        : conf.onSuccess;
+    }
+
+    this.state.confrontation = {
+      ...this.state.confrontation,
+      roundIndex: lastRoundIndex,
+      status: 'success',
+      lastFeedback: finalFeedback,
+    };
+    this.state.flags = { ...this.state.flags, 'confrontation-complete': true };
+    this.state.objective = '对质完成，进入时间验证并提交结案归纳。';
+    this.state.screen = 'deduction';
   }
 
   private selectTimelineClue(clueId: string): void {
@@ -733,7 +758,7 @@ export class StageOneApp {
         <div class="testimony-list">${sentencesHtml}</div>
       </div>
     </div>
-    <p class="confront-feedback">${conf.lastFeedback}</p>
+    <p class="confront-feedback">${conf.lastFeedback.replace(/\n/g, '<br>')}</p>
     <div class="evidence-section ${hasSelection ? 'is-active' : 'is-waiting'}">
       <h3 class="evidence-title">${evidenceHintText}</h3>
       <div class="evidence-grid">${evidenceCardsHtml}</div>
