@@ -778,7 +778,7 @@ export class StageOneApp {
       ? '选择一条证据反驳被选中的证词'
       : '先点击周岚的某句证词，再出示证据';
 
-    return `<section class="confrontation-shell">
+    return `<div class="screen-scrollable"><section class="confrontation-shell">
     <header class="confront-head">
       <div class="confront-head-left">
         <h2>关键对质</h2>
@@ -801,7 +801,7 @@ export class StageOneApp {
       <h3 class="evidence-title">${evidenceHintText}</h3>
       <div class="evidence-grid">${evidenceCardsHtml}</div>
     </div>
-  </section>`;
+  </section></div>`;
   }
 
   private renderDeductionBody(): string {
@@ -812,23 +812,40 @@ export class StageOneApp {
         ${wipBanner}
         <section class="screen-panel">
           <h2>时间验证</h2>
-          <p>先点击关键线索，再点击时间槽位放置。错误槽位会显示冲突提示。</p>
+          <p class="deduction-guide">1. 从上方线索中点击选中（高亮表示已选）<br>2. 点击对应时间的槽位放置线索<br>3. 错误放置会显示 ✗，可重新点击换正确的线索</p>
           <div class="evidence-grid">
             ${this.state.inventory
               .filter((c) => c.isKey)
-              .map((c) => `<button class="evidence-card ${this.state.timeline.selectedClueId === c.id ? 'is-active' : ''}" data-select-timeline-clue="${c.id}"><strong>${c.title}</strong><small>${c.id}</small></button>`)
+              .map((c) => `<button class="evidence-card ${this.state.timeline.selectedClueId === c.id ? 'is-active' : ''}" data-select-timeline-clue="${c.id}"><strong>${c.title}</strong></button>`)
               .join('')}
           </div>
           <div class="timeline-grid">
             ${caseConfig.timelineSlots
               .map((slot) => {
-                const placed = this.state.timeline.placements[slot.id];
-                const conflict = this.state.timeline.conflicts.includes(slot.id);
-                return `<button class="timeline-slot ${conflict ? 'is-conflict' : ''}" data-place-slot="${slot.id}"><strong>${slot.label}</strong><small>${placed ?? '点击放置线索'}</small></button>`;
+                const placedClueId = this.state.timeline.placements[slot.id];
+                const placedClue = placedClueId ? this.state.inventory.find((c) => c.id === placedClueId) : null;
+                const isConflict = this.state.timeline.conflicts.includes(slot.id);
+                let slotStatus: string;
+                if (!placedClue) {
+                  slotStatus = '（待放置）';
+                } else if (isConflict) {
+                  slotStatus = `✗ ${placedClue.title} — 证据不符`;
+                } else {
+                  slotStatus = `✓ ${placedClue.title}`;
+                }
+                const statusCls = !placedClue ? '' : isConflict ? 'is-conflict' : 'is-ok';
+                return `<button class="timeline-slot ${isConflict ? 'is-conflict' : ''}" data-place-slot="${slot.id}"><strong>${slot.label}</strong><small class="timeline-slot-status ${statusCls}">${slotStatus}</small></button>`;
               })
               .join('')}
           </div>
-          <p>${this.state.timeline.completed ? '行为链闭合完成。' : '尚未闭合关键行为链。'}</p>
+          <p>${(() => {
+            const totalSlots = caseConfig.timelineSlots.length;
+            const placedCount = Object.keys(this.state.timeline.placements).length;
+            const conflictCount = this.state.timeline.conflicts.length;
+            if (placedCount < totalSlots) return `已放置 ${placedCount} / ${totalSlots} 条证据`;
+            if (conflictCount > 0) return `⚠ 有 ${conflictCount} 处证据不符，请调整`;
+            return '✓ 时间线已完整闭合';
+          })()}</p>
         </section>
         <section class="screen-panel">
           <h2>结案归纳提交</h2>

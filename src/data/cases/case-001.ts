@@ -94,11 +94,8 @@ export const case001Config: StageCaseConfig = {
   timelineSlots: [
     { id: 't-0720', label: '07:20 资料送达 / 周岚负责封装', expectedClueId: 'clue-envelope-opened' },
     { id: 't-0728', label: '07:28 周岚进入评审室', expectedClueId: 'clue-doorlog-0728' },
-    { id: 't-0731', label: '07:31–07:33 监控空窗', expectedClueId: 'clue-camera-gap-0731' },
+    { id: 't-0731', label: '07:31-07:33 监控空窗', expectedClueId: 'clue-camera-gap-0731' },
     { id: 't-0800', label: '08:00 发现结论页异常', expectedClueId: 'clue-shred-label' },
-    { id: 't-0805', label: '08:05 陈序到场', expectedClueId: 'clue-doorlog-0728' },
-    { id: 't-0817', label: '08:17 玩家介入', expectedClueId: 'clue-camera-gap-0731' },
-    { id: 't-0822', label: '08:22 最后期限', expectedClueId: 'clue-shred-label' },
   ],
   submission: {
     suspects: ['周岚', '陈序'],
