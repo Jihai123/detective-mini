@@ -436,7 +436,7 @@ export class StageOneApp {
       if (next >= conf.rounds.length) this.handleConfrontationEnd();
     } else {
       const mistakesInCurrentRound = this.state.confrontation.mistakesInCurrentRound + 1;
-      if (mistakesInCurrentRound >= conf.maxMistakesPerRound) {
+      if (mistakesInCurrentRound > conf.maxMistakesPerRound) {
         const newResults = [...this.state.confrontation.roundResults];
         newResults[this.state.confrontation.roundIndex] = 'lost';
         const next = this.state.confrontation.roundIndex + 1;
@@ -468,15 +468,16 @@ export class StageOneApp {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const conf = caseConfig.confrontation;
     const allLost = this.state.confrontation.roundResults.every((r) => r === 'lost');
+    const lastRoundIndex = conf.rounds.length - 1;
     if (allLost) {
-      this.state.confrontation = { ...this.state.confrontation, status: 'allLost', lastFeedback: conf.onAllLost ?? '对质全部失败，回去补强证据。' };
+      this.state.confrontation = { ...this.state.confrontation, roundIndex: lastRoundIndex, status: 'allLost', lastFeedback: conf.onAllLost ?? '对质全部失败，回去补强证据。' };
       this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
       this.state.hintCount += 1;
       this.primaryNotice = '关键对质全线受挫：先补齐证据再回来。';
       this.state.screen = 'investigation';
       this.state.objective = '对质受挫，回调查区补证据后再战。';
     } else {
-      this.state.confrontation = { ...this.state.confrontation, status: 'success', lastFeedback: conf.onSuccess };
+      this.state.confrontation = { ...this.state.confrontation, roundIndex: lastRoundIndex, status: 'success', lastFeedback: conf.onSuccess };
       this.state.flags = { ...this.state.flags, 'confrontation-complete': true };
       this.state.objective = '对质完成，进入时间验证并提交结案归纳。';
       this.state.screen = 'deduction';
