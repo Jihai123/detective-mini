@@ -675,23 +675,70 @@ export class StageOneApp {
   private renderConfrontationBody(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const target = caseConfig.characters.find((c) => c.id === caseConfig.confrontation.target);
-    const round = caseConfig.confrontation.rounds[this.state.confrontation.roundIndex];
-    const remain = caseConfig.confrontation.maxMistakesPerRound - this.state.confrontation.mistakesInCurrentRound;
-    const targetVisual = this.getCharacterVisual(target);
-    const contradictableSentence = round?.sentences.find((s) => s.contradictable);
-    const counterEvidenceId = contradictableSentence?.counterEvidenceId;
-    const correctCard = this.state.inventory.find((item) => item.id === counterEvidenceId);
-    if (!correctCard && counterEvidenceId) {
-      console.warn(`[confrontation] counterEvidenceId "${counterEvidenceId}" not found in inventory`);
-    }
-    const distractors = this.state.inventory
-      .filter((item) => item.isKey && item.id !== counterEvidenceId)
-      .slice(0, 2);
-    const reducedEvidence = correctCard ? [correctCard, ...distractors] : distractors;
-    const defenseLine = contradictableSentence?.text ?? '对质结束';
-    return `<section class="confrontation-shell"><header class="confront-head"><h2>关键对质</h2><p>回合 ${Math.min(this.state.confrontation.roundIndex + 1, caseConfig.confrontation.rounds.length)} / ${caseConfig.confrontation.rounds.length} ｜ 剩余容错 ${remain}</p></header><div class="confront-stage"><img src="${targetVisual?.portrait ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png'}" alt="${target?.name ?? '目标'}" class="confront-portrait" /><article class="defense-line">${defenseLine}</article></div><p class="confront-feedback">${this.state.confrontation.lastFeedback}</p><h3>出示证据</h3><div class="evidence-grid">${reducedEvidence
-      .map((item) => `<button class="evidence-card" data-present-evidence="${item.id}"><strong>${item.title}</strong><small>${item.source.split(' / ')[0]}</small></button>`)
-      .join('')}</div></section>`;
+    const conf = this.state.confrontation;
+    const round = caseConfig.confrontation.rounds[conf.roundIndex];
+    const totalRounds = caseConfig.confrontation.rounds.length;
+    const remain = caseConfig.confrontation.maxMistakesPerRound - conf.mistakesInCurrentRound;
+
+    const emotion = round?.enterEmotion ?? 'neutral';
+    const portraitSrc = target?.emotionPortraits?.[emotion] ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png';
+
+    const hasSelection = conf.selectedSentenceId !== null;
+    const evidenceList = this.state.inventory.filter((i) => i.isKey).slice(0, 4);
+
+    const sentencesHtml = round
+      ? round.sentences
+          .map((s) => {
+            const isSelected = conf.selectedSentenceId === s.id;
+            const cls = isSelected ? 'testimony-sentence is-selected' : 'testimony-sentence';
+            return `<button class="${cls}" data-select-sentence="${s.id}">${s.text}</button>`;
+          })
+          .join('')
+      : '';
+
+    const roundBadges = conf.roundResults
+      .map((r, i) => {
+        const active = i === conf.roundIndex && conf.status === 'ongoing';
+        const cls = `round-badge is-${r}${active ? ' is-active' : ''}`;
+        return `<span class="${cls}">${i + 1}</span>`;
+      })
+      .join('');
+
+    const evidenceCardsHtml = evidenceList
+      .map((item) => {
+        const disabled = hasSelection ? '' : 'disabled';
+        return `<button class="evidence-card" data-present-evidence="${item.id}" ${disabled}><strong>${item.title}</strong><small>${item.source.split(' / ')[0]}</small></button>`;
+      })
+      .join('');
+
+    const evidenceHintText = hasSelection
+      ? '选择一条证据反驳被选中的证词'
+      : '先点击周岚的某句证词，再出示证据';
+
+    return `<section class="confrontation-shell">
+    <header class="confront-head">
+      <div class="confront-head-left">
+        <h2>关键对质</h2>
+        <div class="round-progress">${roundBadges}</div>
+      </div>
+      <div class="confront-head-right">
+        <p class="round-meta">回合 ${Math.min(conf.roundIndex + 1, totalRounds)} / ${totalRounds}</p>
+        <p class="mistakes-meta">剩余容错 <strong>${Math.max(remain, 0)}</strong></p>
+      </div>
+    </header>
+    <div class="confront-stage">
+      <img src="${portraitSrc}" alt="${target?.name ?? '目标'}" class="confront-portrait" />
+      <div class="testimony-panel">
+        <h3 class="testimony-title">${target?.name ?? '证人'}的证词</h3>
+        <div class="testimony-list">${sentencesHtml}</div>
+      </div>
+    </div>
+    <p class="confront-feedback">${conf.lastFeedback}</p>
+    <div class="evidence-section ${hasSelection ? 'is-active' : 'is-waiting'}">
+      <h3 class="evidence-title">${evidenceHintText}</h3>
+      <div class="evidence-grid">${evidenceCardsHtml}</div>
+    </div>
+  </section>`;
   }
 
   private renderDeductionBody(): string {

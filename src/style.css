@@ -185,13 +185,36 @@ body {
 .dev-tip { font-size: 12px; color: #a7bae8; margin-top: 8px; }
 .dev-panel { margin-top: 10px; border: 1px dashed rgba(160, 181, 240, .35); border-radius: 10px; padding: 10px 12px; background: rgba(8, 16, 35, .48); }
 .confrontation-shell { border: 1px solid rgba(255,170,118,.35); border-radius: 12px; background: radial-gradient(circle at 30% -20%, rgba(255,121,64,.18), rgba(12,16,32,.9)); padding: 16px; }
-.defense-line { border-left: 4px solid #ff915d; padding: 10px 12px; background: rgba(43,20,12,.5); border-radius: 8px; line-height: 1.6; }
+.confront-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+.confront-head-left { display: flex; flex-direction: column; gap: 8px; }
+.confront-head h2 { margin: 0; font-size: 28px; color: #fff2e7; }
+.confront-head-right { text-align: right; }
+.round-meta { margin: 0; color: #ffd6bc; font-size: 14px; }
+.mistakes-meta { margin: 4px 0 0 0; color: #ffd6bc; font-size: 13px; }
+.mistakes-meta strong { color: #ffb067; font-size: 18px; }
+.round-progress { display: flex; gap: 6px; }
+.round-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-size: 13px; border: 1px solid rgba(255,170,118,.4); color: #fff2e7; background: transparent; font-weight: 600; }
+.round-badge.is-pending { opacity: 0.5; }
+.round-badge.is-won { background: rgba(96,215,150,.2); border-color: rgba(96,215,150,.6); color: #b5ffd4; }
+.round-badge.is-lost { background: rgba(255,95,95,.15); border-color: rgba(255,95,95,.5); color: #ff8e8e; }
+.round-badge.is-active { outline: 2px solid #ffd18e; outline-offset: 2px; }
 .confront-feedback { color: #ffd6b7; min-height: 24px; }
+.testimony-panel { display: flex; flex-direction: column; gap: 10px; }
+.testimony-title { margin: 0; font-size: 16px; color: #ffd6bc; font-weight: 500; }
+.testimony-list { display: flex; flex-direction: column; gap: 8px; }
+.testimony-sentence { text-align: left; padding: 12px 14px; border: 1px solid rgba(255,170,118,.3); border-radius: 8px; background: rgba(43,20,12,.4); color: #fff2e7; line-height: 1.6; font-size: 16px; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.testimony-sentence:hover { background: rgba(61,30,18,.6); border-color: rgba(255,170,118,.5); }
+.testimony-sentence.is-selected { background: rgba(255,95,95,.18); border-color: #ff6b6b; color: #ffeaea; box-shadow: 0 0 0 2px rgba(255,107,107,.3); }
+.evidence-section { margin-top: 16px; transition: opacity 0.2s; }
+.evidence-section.is-waiting { opacity: 0.45; }
+.evidence-section.is-active { opacity: 1; }
+.evidence-title { margin: 0 0 10px 0; font-size: 15px; color: #ffd6bc; font-weight: 500; }
 .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.evidence-card { text-align: left; border: 1px solid rgba(255,170,118,.45); background: rgba(73,34,20,.55); color: #fff2e7; }
+.evidence-card { text-align: left; padding: 10px 12px; border: 1px solid rgba(255,170,118,.45); border-radius: 8px; background: rgba(73,34,20,.55); color: #fff2e7; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.evidence-card:hover:not(:disabled) { background: rgba(92,46,26,.7); border-color: rgba(255,170,118,.7); }
+.evidence-card:disabled { cursor: not-allowed; opacity: 0.5; }
 .evidence-card strong { display: block; margin-bottom: 4px; }
 .evidence-card small { opacity: .8; }
-.evidence-card.is-active { outline: 2px solid #ffd18e; }
 .timeline-grid { display: grid; gap: 8px; margin: 12px 0; }
 .timeline-slot { text-align: left; border: 1px solid rgba(159, 178, 255, 0.35); background: rgba(24, 34, 68, 0.8); color: #e2edff; }
 .timeline-slot.is-conflict { border-color: rgba(255, 119, 119, 0.8); }
@@ -272,12 +295,9 @@ button { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px;
 .dialogue-controls .subtle-btn { margin-left: auto; font-size: 12px; opacity: .6; }
 
 .confrontation-shell { padding: 18px; background: radial-gradient(circle at 30% -10%, rgba(255,115,56,.25), rgba(10,14,28,.95)); }
-.confront-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
-.confront-head h2 { margin: 0; font-size: 34px; }
-.confront-head p { margin: 0; color: #ffd6bc; }
+.confront-head h2 { font-size: 34px; }
 .confront-stage { display: grid; grid-template-columns: minmax(220px, 280px) 1fr; gap: 12px; align-items: stretch; margin: 12px 0; }
 .confront-portrait { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; border: 1px solid rgba(255, 168, 122, .5); }
-.defense-line { font-size: 30px; font-family: 'Noto Serif SC', serif; display: flex; align-items: center; }
 .confront-feedback { min-height: 32px; font-size: 18px; }
 
 .result-shell { text-align: center; }
@@ -292,7 +312,7 @@ button { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px;
   .hotspot { width: 58px; height: 58px; }
   .dialogue-main article { font-size: 34px; }
   .confront-stage { grid-template-columns: 1fr; }
-  .defense-line { font-size: 24px; }
+  .testimony-sentence { font-size: 15px; }
   .result-rating { width: 140px; height: 140px; }
   .result-rating span { font-size: 70px; }
 }
