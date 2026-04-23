@@ -316,3 +316,6 @@ button { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px;
   .result-rating { width: 140px; height: 140px; }
   .result-rating span { font-size: 70px; }
 }
+
+.wip-banner { background: rgba(255,170,80,.12); border: 1px solid rgba(255,170,80,.4); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; color: #ffd6a3; font-size: 14px; line-height: 1.5; }
+.confrontation-hint { margin: 8px 0; padding: 8px 12px; background: rgba(255,200,80,.08); border-left: 3px solid rgba(255,200,80,.5); color: #ffe0a3; font-size: 13px; }
