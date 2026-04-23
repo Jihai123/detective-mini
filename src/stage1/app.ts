@@ -76,7 +76,7 @@ export class StageOneApp {
       restoreNotice: existingSave ? '已恢复上次进度。' : null,
       contradictionMessage: null,
       confrontation:
-        existingSave?.confrontation ?? { roundIndex: 0, mistakes: 0, lastFeedback: '完成调查后开始关键对质。', status: 'idle' },
+        existingSave?.confrontation ?? { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: [], selectedSentenceId: null, lastFeedback: '完成调查后开始关键对质。', status: 'idle' },
       timeline:
         existingSave?.timeline ?? { selectedClueId: null, placements: {}, conflicts: [], completed: false },
       submission:
@@ -101,6 +101,7 @@ export class StageOneApp {
       this.preloadDeferredAssets();
       this.setupIdleHint();
     });
+    (window as any).__app = this;
   }
 
 
@@ -371,9 +372,66 @@ export class StageOneApp {
 
   private startConfrontation(): void {
     if (!this.state.flags['first-contradiction-found']) return;
+
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const holdings = new Set<string>([
+      ...this.state.inventory.map((i) => i.id),
+      ...this.state.testimonies.map((t) => t.id),
+    ]);
+
+    const preResults: Array<'pending' | 'lost'> = caseConfig.confrontation.rounds.map((round) => {
+      const contradictableSentence = round.sentences.find((s) => s.contradictable);
+      const requiredId = contradictableSentence?.counterEvidenceId;
+      if (!requiredId) return 'pending';
+      return holdings.has(requiredId) ? 'pending' : 'lost';
+    });
+
     this.state.screen = 'confrontation';
-    this.state.confrontation = { roundIndex: 0, mistakes: 0, status: 'ongoing', lastFeedback: '选择证据，逐轮击穿周岚防线。' };
+    this.state.confrontation = {
+      roundIndex: 0,
+      mistakesInCurrentRound: 0,
+      roundResults: preResults,
+      selectedSentenceId: null,
+      status: 'ongoing',
+      lastFeedback: '审视周岚的每一句话。找出自相矛盾的那一句。',
+    };
+
+    this.advanceToNextPlayableRound();
+
     this.persistState();
+    this.render();
+  }
+
+  private advanceToNextPlayableRound(): void {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const conf = caseConfig.confrontation;
+
+    while (
+      this.state.confrontation.roundIndex < conf.rounds.length &&
+      this.state.confrontation.roundResults[this.state.confrontation.roundIndex] === 'lost'
+    ) {
+      this.state.confrontation.roundIndex++;
+      this.state.confrontation.mistakesInCurrentRound = 0;
+      this.state.confrontation.selectedSentenceId = null;
+    }
+
+    if (this.state.confrontation.roundIndex >= conf.rounds.length) {
+      this.handleConfrontationEnd();
+    }
+  }
+
+  private selectSentence(sentenceId: string): void {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const round = caseConfig.confrontation.rounds[this.state.confrontation.roundIndex];
+    if (!round || this.state.confrontation.status !== 'ongoing') return;
+    const sentence = round.sentences.find((s) => s.id === sentenceId);
+    if (!sentence) return;
+    if (!sentence.contradictable) {
+      this.state.confrontation = { ...this.state.confrontation, lastFeedback: '这句话听起来没问题……' };
+      this.render();
+      return;
+    }
+    this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: sentenceId, lastFeedback: '这一句有问题。用证据证明她在说谎。' };
     this.render();
   }
 
@@ -383,35 +441,102 @@ export class StageOneApp {
     const round = conf.rounds[this.state.confrontation.roundIndex];
     if (!round || this.state.confrontation.status !== 'ongoing') return;
 
-    if (evidenceId === round.correctEvidence) {
-      const next = this.state.confrontation.roundIndex + 1;
-      if (next >= conf.rounds.length) {
-        this.state.confrontation = { ...this.state.confrontation, roundIndex: next, status: 'success', lastFeedback: conf.onSuccess };
-        this.state.flags = { ...this.state.flags, 'confrontation-complete': true };
-        this.state.objective = '对质完成，进入时间验证并提交结案归纳。';
-        this.state.screen = 'deduction';
-      } else {
-        this.state.confrontation = { ...this.state.confrontation, roundIndex: next, lastFeedback: round.correctFeedback };
-      }
+    const selectedId = this.state.confrontation.selectedSentenceId;
+    if (!selectedId) {
+      this.state.confrontation = { ...this.state.confrontation, lastFeedback: '先找出她哪句话有问题——证据才能派上用场。' };
+      this.render();
+      return;
+    }
+
+    const sentence = round.sentences.find((s) => s.id === selectedId);
+    if (!sentence || !sentence.contradictable) {
+      this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: null, lastFeedback: '这句话听起来没问题……换一句看看。' };
+      this.render();
+      return;
+    }
+
+    if (evidenceId === sentence.counterEvidenceId) {
+      const newResults = [...this.state.confrontation.roundResults];
+      newResults[this.state.confrontation.roundIndex] = 'won';
+      this.state.confrontation = {
+        ...this.state.confrontation,
+        roundIndex: this.state.confrontation.roundIndex + 1,
+        mistakesInCurrentRound: 0,
+        roundResults: newResults,
+        selectedSentenceId: null,
+        lastFeedback: round.onCorrectFeedback,
+      };
+      this.advanceToNextPlayableRound();
     } else {
-      const mistakes = this.state.confrontation.mistakes + 1;
-      if (mistakes > conf.maxMistakes) {
-        this.state.confrontation = { ...this.state.confrontation, mistakes, status: 'failed', lastFeedback: conf.onFail };
-        this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
-        this.state.overlay = 'hint';
-        this.state.hintCount += 1;
-        this.primaryNotice = '关键对质受挫：建议先补齐 camera-gap 与 shred-label 再回来。';
-        this.state.screen = 'investigation';
-        this.state.objective = '对质受挫，回调查区补证据后再战。';
+      const mistakesInCurrentRound = this.state.confrontation.mistakesInCurrentRound + 1;
+      if (mistakesInCurrentRound > conf.maxMistakesPerRound) {
+        const newResults = [...this.state.confrontation.roundResults];
+        newResults[this.state.confrontation.roundIndex] = 'lost';
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          roundIndex: this.state.confrontation.roundIndex + 1,
+          mistakesInCurrentRound: 0,
+          roundResults: newResults,
+          selectedSentenceId: null,
+          lastFeedback: round.onRoundLost ?? round.onWrongFeedback,
+        };
+        this.advanceToNextPlayableRound();
       } else {
-        this.state.confrontation = { ...this.state.confrontation, mistakes, lastFeedback: round.wrongFeedback };
-        this.primaryNotice = '这次质证点偏了，换一个能直接冲击防线的证据。';
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          mistakesInCurrentRound,
+          selectedSentenceId: null,
+          lastFeedback: round.onWrongFeedback,
+        };
       }
     }
 
     this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { round: `${this.state.confrontation.roundIndex}` } });
     this.persistState();
     this.render();
+  }
+
+  private handleConfrontationEnd(): void {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const conf = caseConfig.confrontation;
+    const roundResults = this.state.confrontation.roundResults;
+    const lastRoundIndex = conf.rounds.length - 1;
+    const wonCount = roundResults.filter((r) => r === 'won').length;
+    const lostCount = roundResults.filter((r) => r === 'lost').length;
+    const hasMajorityWin = wonCount > lostCount;
+
+    if (!hasMajorityWin) {
+      this.state.confrontation = {
+        ...this.state.confrontation,
+        roundIndex: lastRoundIndex,
+        status: wonCount === 0 ? 'allLost' : 'ongoing',
+        lastFeedback: conf.onAllLost ?? '对质未能充分击穿证人的防线——或许证据还没有收集齐全。',
+      };
+      this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
+      this.state.hintCount += 1;
+      this.primaryNotice = '关键对质未能推进：回到调查区补齐证据。';
+      this.state.screen = 'investigation';
+      this.state.objective = '对质受挫，回调查区补证据后再战。';
+      return;
+    }
+
+    const hasLost = roundResults.some((r) => r === 'lost');
+    const lastRound = conf.rounds[lastRoundIndex];
+    const lastRoundWon = roundResults[lastRoundIndex] === 'won';
+
+    const finalFeedback = hasLost
+      ? '你击穿了她最核心的谎言，但有些细节没能拿下。或许那些没被揭穿的部分，正藏着更多东西。'
+      : (lastRoundWon ? `${lastRound.onCorrectFeedback}\n\n${conf.onSuccess}` : conf.onSuccess);
+
+    this.state.confrontation = {
+      ...this.state.confrontation,
+      roundIndex: lastRoundIndex,
+      status: 'success',
+      lastFeedback: finalFeedback,
+    };
+    this.state.flags = { ...this.state.flags, 'confrontation-complete': true };
+    this.state.objective = '对质完成，进入时间验证并提交结案归纳。';
+    this.state.screen = 'deduction';
   }
 
   private selectTimelineClue(clueId: string): void {
@@ -605,45 +730,122 @@ export class StageOneApp {
   private renderConfrontationBody(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const target = caseConfig.characters.find((c) => c.id === caseConfig.confrontation.target);
-    const round = caseConfig.confrontation.rounds[this.state.confrontation.roundIndex];
-    const remain = caseConfig.confrontation.maxMistakes - this.state.confrontation.mistakes;
-    const targetVisual = this.getCharacterVisual(target);
-    const correctCard = this.state.inventory.find((item) => item.id === round?.correctEvidence);
-    if (!correctCard && round?.correctEvidence) {
-      console.warn(`[confrontation] correctEvidence "${round.correctEvidence}" not found in inventory`);
-    }
-    const distractors = this.state.inventory
-      .filter((item) => item.isKey && item.id !== round?.correctEvidence)
-      .slice(0, 2);
-    const reducedEvidence = correctCard ? [correctCard, ...distractors] : distractors;
-    return `<section class="confrontation-shell"><header class="confront-head"><h2>关键对质</h2><p>回合 ${Math.min(this.state.confrontation.roundIndex + 1, caseConfig.confrontation.rounds.length)} / ${caseConfig.confrontation.rounds.length} ｜ 剩余容错 ${remain}</p></header><div class="confront-stage"><img src="${targetVisual?.portrait ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png'}" alt="${target?.name ?? '目标'}" class="confront-portrait" /><article class="defense-line">${round?.defense ?? '对质结束'}</article></div><p class="confront-feedback">${this.state.confrontation.lastFeedback}</p><h3>出示证据</h3><div class="evidence-grid">${reducedEvidence
-      .map((item) => `<button class="evidence-card" data-present-evidence="${item.id}"><strong>${item.title}</strong><small>${item.source.split(' / ')[0]}</small></button>`)
-      .join('')}</div></section>`;
+    const conf = this.state.confrontation;
+    const round = caseConfig.confrontation.rounds[conf.roundIndex];
+    const totalRounds = caseConfig.confrontation.rounds.length;
+    const remain = caseConfig.confrontation.maxMistakesPerRound - conf.mistakesInCurrentRound;
+
+    const emotion = round?.enterEmotion ?? 'neutral';
+    const portraitSrc = target?.emotionPortraits?.[emotion] ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png';
+
+    const hasSelection = conf.selectedSentenceId !== null;
+    type EvidenceDisplay = { id: string; title: string; source: string };
+    const clueEvidence: EvidenceDisplay[] = this.state.inventory
+      .filter((i) => i.isKey)
+      .map((i) => ({ id: i.id, title: i.title, source: i.source.split(' / ')[0] }));
+    const testimonyEvidence: EvidenceDisplay[] = this.state.testimonies.map((t) => {
+      const char = caseConfig.characters.find((c) => c.id === t.sourceCharacterId);
+      return { id: t.id, title: t.title, source: char ? `${char.name}的证词` : '证词' };
+    });
+    const evidenceList: EvidenceDisplay[] = [...clueEvidence, ...testimonyEvidence];
+
+    const sentencesHtml = round
+      ? round.sentences
+          .map((s) => {
+            const isSelected = conf.selectedSentenceId === s.id;
+            const cls = isSelected ? 'testimony-sentence is-selected' : 'testimony-sentence';
+            return `<button class="${cls}" data-select-sentence="${s.id}">${s.text}</button>`;
+          })
+          .join('')
+      : '';
+
+    const roundBadges = conf.roundResults
+      .map((r, i) => {
+        const active = i === conf.roundIndex && conf.status === 'ongoing';
+        const cls = `round-badge is-${r}${active ? ' is-active' : ''}`;
+        return `<span class="${cls}">${i + 1}</span>`;
+      })
+      .join('');
+
+    const evidenceCardsHtml = evidenceList
+      .map((item) => {
+        const disabled = hasSelection ? '' : 'disabled';
+        return `<button class="evidence-card" data-present-evidence="${item.id}" ${disabled}><strong>${item.title}</strong><small>${item.source}</small></button>`;
+      })
+      .join('');
+
+    const evidenceHintText = hasSelection
+      ? '选择一条证据反驳被选中的证词'
+      : '先点击周岚的某句证词，再出示证据';
+
+    return `<div class="screen-scrollable"><section class="confrontation-shell">
+    <header class="confront-head">
+      <div class="confront-head-left">
+        <h2>关键对质</h2>
+        <div class="round-progress">${roundBadges}</div>
+      </div>
+      <div class="confront-head-right">
+        <p class="round-meta">回合 ${Math.min(conf.roundIndex + 1, totalRounds)} / ${totalRounds}</p>
+        <p class="mistakes-meta">剩余容错 <strong>${Math.max(remain, 0)}</strong></p>
+      </div>
+    </header>
+    <div class="confront-stage">
+      <img src="${portraitSrc}" alt="${target?.name ?? '目标'}" class="confront-portrait" />
+      <div class="testimony-panel">
+        <h3 class="testimony-title">${target?.name ?? '证人'}的证词</h3>
+        <div class="testimony-list">${sentencesHtml}</div>
+      </div>
+    </div>
+    <p class="confront-feedback">${conf.lastFeedback.replace(/\n/g, '<br>')}</p>
+    <div class="evidence-section ${hasSelection ? 'is-active' : 'is-waiting'}">
+      <h3 class="evidence-title">${evidenceHintText}</h3>
+      <div class="evidence-grid">${evidenceCardsHtml}</div>
+    </div>
+  </section></div>`;
   }
 
   private renderDeductionBody(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
+    const wipBanner = `<div class="wip-banner">⚙️ 推理阶段的交互玩法即将升级（T2-T3），当前仅展示核心数据。</div>`;
     return `
       <div class="screen-scrollable">
+        ${wipBanner}
         <section class="screen-panel">
           <h2>时间验证</h2>
-          <p>先点击关键线索，再点击时间槽位放置。错误槽位会显示冲突提示。</p>
+          <p class="deduction-guide">1. 从上方线索中点击选中（高亮表示已选）<br>2. 点击对应时间的槽位放置线索<br>3. 错误放置会显示 ✗，可重新点击换正确的线索</p>
           <div class="evidence-grid">
             ${this.state.inventory
               .filter((c) => c.isKey)
-              .map((c) => `<button class="evidence-card ${this.state.timeline.selectedClueId === c.id ? 'is-active' : ''}" data-select-timeline-clue="${c.id}"><strong>${c.title}</strong><small>${c.id}</small></button>`)
+              .map((c) => `<button class="evidence-card ${this.state.timeline.selectedClueId === c.id ? 'is-selected' : ''}" data-select-timeline-clue="${c.id}"><strong>${c.title}</strong></button>`)
               .join('')}
           </div>
           <div class="timeline-grid">
             ${caseConfig.timelineSlots
               .map((slot) => {
-                const placed = this.state.timeline.placements[slot.id];
-                const conflict = this.state.timeline.conflicts.includes(slot.id);
-                return `<button class="timeline-slot ${conflict ? 'is-conflict' : ''}" data-place-slot="${slot.id}"><strong>${slot.label}</strong><small>${placed ?? '点击放置线索'}</small></button>`;
+                const placedClueId = this.state.timeline.placements[slot.id];
+                const placedClue = placedClueId ? this.state.inventory.find((c) => c.id === placedClueId) : null;
+                const isConflict = this.state.timeline.conflicts.includes(slot.id);
+                let slotStatus: string;
+                if (!placedClue) {
+                  slotStatus = '（待放置）';
+                } else if (isConflict) {
+                  slotStatus = `✗ ${placedClue.title} — 证据不符`;
+                } else {
+                  slotStatus = `✓ ${placedClue.title}`;
+                }
+                const statusCls = !placedClue ? '' : isConflict ? 'is-conflict' : 'is-ok';
+                return `<button class="timeline-slot ${isConflict ? 'is-conflict' : ''}" data-place-slot="${slot.id}"><strong>${slot.label}</strong><small class="timeline-slot-status ${statusCls}">${slotStatus}</small></button>`;
               })
               .join('')}
           </div>
-          <p>${this.state.timeline.completed ? '行为链闭合完成。' : '尚未闭合关键行为链。'}</p>
+          <p>${(() => {
+            const totalSlots = caseConfig.timelineSlots.length;
+            const placedCount = Object.keys(this.state.timeline.placements).length;
+            const conflictCount = this.state.timeline.conflicts.length;
+            if (placedCount < totalSlots) return `已放置 ${placedCount} / ${totalSlots} 条证据`;
+            if (conflictCount > 0) return `⚠ 有 ${conflictCount} 处证据不符，请调整`;
+            return '✓ 时间线已完整闭合';
+          })()}</p>
         </section>
         <section class="screen-panel">
           <h2>结案归纳提交</h2>
@@ -659,8 +861,15 @@ export class StageOneApp {
   }
 
   private renderSubmissionOptions(field: keyof SubmissionState, options: string[]): string {
-    return `<div class="submission-group"><h3>${field}</h3><div class="evidence-grid">${options
-      .map((opt) => `<button class="evidence-card ${this.state.submission[field] === opt ? 'is-active' : ''}" data-submission-field="${field}" data-submission-value="${opt}">${opt}</button>`)
+    const FIELD_LABELS: Record<keyof SubmissionState, string> = {
+      suspect: '嫌疑人',
+      keyLie: '关键谎言',
+      method: '作案手法',
+      destination: '赃物去向',
+    };
+    const label = FIELD_LABELS[field];
+    return `<div class="submission-group"><h3>${label}</h3><div class="evidence-grid">${options
+      .map((opt) => `<button class="evidence-card ${this.state.submission[field] === opt ? 'is-selected' : ''}" data-submission-field="${field}" data-submission-value="${opt}">${opt}</button>`)
       .join('')}</div></div>`;
   }
 
@@ -708,7 +917,9 @@ export class StageOneApp {
   private renderInvestigationBody(background: string): string {
     const anomalies = this.getConfirmedAnomalies();
     const nextActions = this.getNextActions();
-    return `
+    const canStartConfrontation = this.state.flags['first-contradiction-found'];
+    const chenxuWitnessCollected = this.state.testimonies.some((t) => t.id === 'testimony-chenxu-witness');
+    return `<div class="screen-scrollable">
       ${this.renderSceneTabs()}
       <div class="investigation-layout">
         <div class="investigation-stage" style="background-image:url('${background}'), url('/assets/cases/case-001/scenes/review_room.jpg')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>
@@ -716,6 +927,7 @@ export class StageOneApp {
           <section><h3>调查判断</h3><p>${this.state.objective}</p></section>
           <section><h3>已确认线索</h3><ul>${(anomalies.length ? anomalies : ['暂无已确认线索']).map((item) => `<li>${item}</li>`).join('')}</ul></section>
           <section><h3>下一步</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
+            ${canStartConfrontation && !chenxuWitnessCollected ? '<p class="confrontation-hint">⚠ 证据可能尚未齐全：尝试再次追问陈序，或继续探索其他场景。</p>' : ''}
             ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}
             ${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}
           </section>
@@ -723,7 +935,7 @@ export class StageOneApp {
       </div>
       ${this.renderCharacterCards()}
       ${DEV_MODE ? `<section class="dev-panel"><h3>DEV 事件</h3><ul class="event-feed">${this.state.eventFeed.map((evt) => `<li>${evt.type}</li>`).join('')}</ul></section>` : ''}
-    `;
+    </div>`;
   }
 
   private renderArchiveBody(): string {
@@ -888,7 +1100,8 @@ export class StageOneApp {
     this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(UI_CLICK_AUDIO, 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
     const startConf = this.root.querySelector<HTMLButtonElement>('[data-start-confrontation="true"]');
     if (startConf) startConf.addEventListener('click', () => this.startConfrontation());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const round = loadCaseConfig(this.state.caseId).confrontation.rounds[this.state.confrontation.roundIndex]; this.playSfx(evidenceId === round?.correctEvidence ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, evidenceId === round?.correctEvidence ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const conf = this.state.confrontation; const round = loadCaseConfig(this.state.caseId).confrontation.rounds[conf.roundIndex]; const selectedSentence = round?.sentences.find((s) => s.id === conf.selectedSentenceId); const isCorrect = !!selectedSentence?.counterEvidenceId && evidenceId === selectedSentence.counterEvidenceId; this.playSfx(isCorrect ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, isCorrect ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-select-sentence]').forEach((button) => button.addEventListener('click', () => button.dataset.selectSentence && this.selectSentence(button.dataset.selectSentence)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-timeline-clue]').forEach((button) => button.addEventListener('click', () => button.dataset.selectTimelineClue && this.selectTimelineClue(button.dataset.selectTimelineClue)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-place-slot]').forEach((button) => button.addEventListener('click', () => { const slot = loadCaseConfig(this.state.caseId).timelineSlots.find((s) => s.id === button.dataset.placeSlot); if (slot) this.placeTimeline(slot); }));
     this.root.querySelectorAll<HTMLButtonElement>('[data-submission-field]').forEach((button) => button.addEventListener('click', () => { const field = button.dataset.submissionField as keyof SubmissionState; const value = button.dataset.submissionValue; if (field && value) this.updateSubmission(field, value); }));

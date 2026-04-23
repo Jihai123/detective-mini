@@ -38,11 +38,13 @@ export type DialogueOption = {
   unlockCondition?: ConditionExpr;
 };
 
+export type Emotion = 'neutral' | 'tense' | 'defensive' | 'serious' | 'collapse';
+
 export type DialogueNode = {
   id: string;
   characterId: string;
   entry?: boolean;
-  emotion: 'neutral' | 'tense' | 'defensive';
+  emotion: Emotion;
   lines: string[];
   options: DialogueOption[];
   effects?: DialogueEffect[];
@@ -56,6 +58,7 @@ export type CharacterConfig = {
   role: string;
   avatar: string;
   portrait: string;
+  emotionPortraits?: Partial<Record<Emotion, string>>;
   dialogueEntryNodeId: string;
 };
 
@@ -75,19 +78,28 @@ export type TestimonyConfig = {
   sourceCharacterId: string;
 };
 
+export type TestimonySentence = {
+  id: string;
+  text: string;
+  contradictable: boolean;
+  counterEvidenceId?: string;
+};
+
 export type ConfrontationRound = {
   id: string;
-  defense: string;
-  correctEvidence: string;
-  wrongFeedback: string;
-  correctFeedback: string;
+  sentences: TestimonySentence[];
+  enterEmotion: Emotion;
+  onCorrectEmotion: Emotion;
+  onCorrectFeedback: string;
+  onWrongFeedback: string;
+  onRoundLost?: string;
 };
 
 export type ConfrontationConfig = {
   target: string;
-  maxMistakes: number;
+  maxMistakesPerRound: number;
   rounds: ConfrontationRound[];
-  onFail: string;
+  onAllLost?: string;
   onSuccess: string;
 };
 
@@ -162,9 +174,11 @@ export type DialogueState = {
 
 export type ConfrontationState = {
   roundIndex: number;
-  mistakes: number;
+  mistakesInCurrentRound: number;
+  roundResults: Array<'pending' | 'won' | 'lost'>;
+  selectedSentenceId: string | null;
+  status: 'idle' | 'ongoing' | 'success' | 'allLost';
   lastFeedback: string;
-  status: 'idle' | 'ongoing' | 'failed' | 'success';
 };
 
 export type TimelineState = {
