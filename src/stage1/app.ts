@@ -816,7 +816,7 @@ export class StageOneApp {
           <div class="evidence-grid">
             ${this.state.inventory
               .filter((c) => c.isKey)
-              .map((c) => `<button class="evidence-card ${this.state.timeline.selectedClueId === c.id ? 'is-active' : ''}" data-select-timeline-clue="${c.id}"><strong>${c.title}</strong></button>`)
+              .map((c) => `<button class="evidence-card ${this.state.timeline.selectedClueId === c.id ? 'is-selected' : ''}" data-select-timeline-clue="${c.id}"><strong>${c.title}</strong></button>`)
               .join('')}
           </div>
           <div class="timeline-grid">
@@ -861,8 +861,15 @@ export class StageOneApp {
   }
 
   private renderSubmissionOptions(field: keyof SubmissionState, options: string[]): string {
-    return `<div class="submission-group"><h3>${field}</h3><div class="evidence-grid">${options
-      .map((opt) => `<button class="evidence-card ${this.state.submission[field] === opt ? 'is-active' : ''}" data-submission-field="${field}" data-submission-value="${opt}">${opt}</button>`)
+    const FIELD_LABELS: Record<keyof SubmissionState, string> = {
+      suspect: '嫌疑人',
+      keyLie: '关键谎言',
+      method: '作案手法',
+      destination: '赃物去向',
+    };
+    const label = FIELD_LABELS[field];
+    return `<div class="submission-group"><h3>${label}</h3><div class="evidence-grid">${options
+      .map((opt) => `<button class="evidence-card ${this.state.submission[field] === opt ? 'is-selected' : ''}" data-submission-field="${field}" data-submission-value="${opt}">${opt}</button>`)
       .join('')}</div></div>`;
   }
 
@@ -912,7 +919,7 @@ export class StageOneApp {
     const nextActions = this.getNextActions();
     const canStartConfrontation = this.state.flags['first-contradiction-found'];
     const chenxuWitnessCollected = this.state.testimonies.some((t) => t.id === 'testimony-chenxu-witness');
-    return `
+    return `<div class="screen-scrollable">
       ${this.renderSceneTabs()}
       <div class="investigation-layout">
         <div class="investigation-stage" style="background-image:url('${background}'), url('/assets/cases/case-001/scenes/review_room.jpg')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>
@@ -928,7 +935,7 @@ export class StageOneApp {
       </div>
       ${this.renderCharacterCards()}
       ${DEV_MODE ? `<section class="dev-panel"><h3>DEV 事件</h3><ul class="event-feed">${this.state.eventFeed.map((evt) => `<li>${evt.type}</li>`).join('')}</ul></section>` : ''}
-    `;
+    </div>`;
   }
 
   private renderArchiveBody(): string {
