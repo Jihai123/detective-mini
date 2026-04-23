@@ -76,7 +76,7 @@ export class StageOneApp {
       restoreNotice: existingSave ? '已恢复上次进度。' : null,
       contradictionMessage: null,
       confrontation:
-        existingSave?.confrontation ?? { roundIndex: 0, mistakes: 0, lastFeedback: '完成调查后开始关键对质。', status: 'idle' },
+        existingSave?.confrontation ?? { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: [], selectedSentenceId: null, lastFeedback: '完成调查后开始关键对质。', status: 'idle' },
       timeline:
         existingSave?.timeline ?? { selectedClueId: null, placements: {}, conflicts: [], completed: false },
       submission:
@@ -101,6 +101,7 @@ export class StageOneApp {
       this.preloadDeferredAssets();
       this.setupIdleHint();
     });
+    (window as any).__app = this;
   }
 
 
@@ -371,9 +372,32 @@ export class StageOneApp {
 
   private startConfrontation(): void {
     if (!this.state.flags['first-contradiction-found']) return;
+    const caseConfig = loadCaseConfig(this.state.caseId);
     this.state.screen = 'confrontation';
-    this.state.confrontation = { roundIndex: 0, mistakes: 0, status: 'ongoing', lastFeedback: '选择证据，逐轮击穿周岚防线。' };
+    this.state.confrontation = {
+      roundIndex: 0,
+      mistakesInCurrentRound: 0,
+      roundResults: caseConfig.confrontation.rounds.map(() => 'pending' as const),
+      selectedSentenceId: null,
+      status: 'ongoing',
+      lastFeedback: '先点击周岚的某句证词，再出示证据驳斥。',
+    };
     this.persistState();
+    this.render();
+  }
+
+  private selectSentence(sentenceId: string): void {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const round = caseConfig.confrontation.rounds[this.state.confrontation.roundIndex];
+    if (!round || this.state.confrontation.status !== 'ongoing') return;
+    const sentence = round.sentences.find((s) => s.id === sentenceId);
+    if (!sentence) return;
+    if (!sentence.contradictable) {
+      this.state.confrontation = { ...this.state.confrontation, lastFeedback: '这句话暂时无从反驳，换一句试试。' };
+      this.render();
+      return;
+    }
+    this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: sentenceId, lastFeedback: '已锁定这句证词——现在出示能驳斥它的证据。' };
     this.render();
   }
 
@@ -383,35 +407,80 @@ export class StageOneApp {
     const round = conf.rounds[this.state.confrontation.roundIndex];
     if (!round || this.state.confrontation.status !== 'ongoing') return;
 
-    if (evidenceId === round.correctEvidence) {
+    const selectedId = this.state.confrontation.selectedSentenceId;
+    if (!selectedId) {
+      this.state.confrontation = { ...this.state.confrontation, lastFeedback: '请先点击周岚的一句证词，再出示证据驳斥。' };
+      this.render();
+      return;
+    }
+
+    const sentence = round.sentences.find((s) => s.id === selectedId);
+    if (!sentence || !sentence.contradictable) {
+      this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: null, lastFeedback: '这句话无从反驳，请重新选择证词。' };
+      this.render();
+      return;
+    }
+
+    if (evidenceId === sentence.counterEvidenceId) {
+      const newResults = [...this.state.confrontation.roundResults];
+      newResults[this.state.confrontation.roundIndex] = 'won';
       const next = this.state.confrontation.roundIndex + 1;
-      if (next >= conf.rounds.length) {
-        this.state.confrontation = { ...this.state.confrontation, roundIndex: next, status: 'success', lastFeedback: conf.onSuccess };
-        this.state.flags = { ...this.state.flags, 'confrontation-complete': true };
-        this.state.objective = '对质完成，进入时间验证并提交结案归纳。';
-        this.state.screen = 'deduction';
-      } else {
-        this.state.confrontation = { ...this.state.confrontation, roundIndex: next, lastFeedback: round.correctFeedback };
-      }
+      this.state.confrontation = {
+        ...this.state.confrontation,
+        roundIndex: next,
+        mistakesInCurrentRound: 0,
+        roundResults: newResults,
+        selectedSentenceId: null,
+        lastFeedback: round.onCorrectFeedback,
+      };
+      if (next >= conf.rounds.length) this.handleConfrontationEnd();
     } else {
-      const mistakes = this.state.confrontation.mistakes + 1;
-      if (mistakes > conf.maxMistakes) {
-        this.state.confrontation = { ...this.state.confrontation, mistakes, status: 'failed', lastFeedback: conf.onFail };
-        this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
-        this.state.overlay = 'hint';
-        this.state.hintCount += 1;
-        this.primaryNotice = '关键对质受挫：建议先补齐 camera-gap 与 shred-label 再回来。';
-        this.state.screen = 'investigation';
-        this.state.objective = '对质受挫，回调查区补证据后再战。';
+      const mistakesInCurrentRound = this.state.confrontation.mistakesInCurrentRound + 1;
+      if (mistakesInCurrentRound >= conf.maxMistakesPerRound) {
+        const newResults = [...this.state.confrontation.roundResults];
+        newResults[this.state.confrontation.roundIndex] = 'lost';
+        const next = this.state.confrontation.roundIndex + 1;
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          roundIndex: next,
+          mistakesInCurrentRound: 0,
+          roundResults: newResults,
+          selectedSentenceId: null,
+          lastFeedback: round.onRoundLost ?? round.onWrongFeedback,
+        };
+        if (next >= conf.rounds.length) this.handleConfrontationEnd();
       } else {
-        this.state.confrontation = { ...this.state.confrontation, mistakes, lastFeedback: round.wrongFeedback };
-        this.primaryNotice = '这次质证点偏了，换一个能直接冲击防线的证据。';
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          mistakesInCurrentRound,
+          selectedSentenceId: null,
+          lastFeedback: round.onWrongFeedback,
+        };
       }
     }
 
     this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { round: `${this.state.confrontation.roundIndex}` } });
     this.persistState();
     this.render();
+  }
+
+  private handleConfrontationEnd(): void {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const conf = caseConfig.confrontation;
+    const allLost = this.state.confrontation.roundResults.every((r) => r === 'lost');
+    if (allLost) {
+      this.state.confrontation = { ...this.state.confrontation, status: 'allLost', lastFeedback: conf.onAllLost ?? '对质全部失败，回去补强证据。' };
+      this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
+      this.state.hintCount += 1;
+      this.primaryNotice = '关键对质全线受挫：先补齐证据再回来。';
+      this.state.screen = 'investigation';
+      this.state.objective = '对质受挫，回调查区补证据后再战。';
+    } else {
+      this.state.confrontation = { ...this.state.confrontation, status: 'success', lastFeedback: conf.onSuccess };
+      this.state.flags = { ...this.state.flags, 'confrontation-complete': true };
+      this.state.objective = '对质完成，进入时间验证并提交结案归纳。';
+      this.state.screen = 'deduction';
+    }
   }
 
   private selectTimelineClue(clueId: string): void {
@@ -606,17 +675,20 @@ export class StageOneApp {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const target = caseConfig.characters.find((c) => c.id === caseConfig.confrontation.target);
     const round = caseConfig.confrontation.rounds[this.state.confrontation.roundIndex];
-    const remain = caseConfig.confrontation.maxMistakes - this.state.confrontation.mistakes;
+    const remain = caseConfig.confrontation.maxMistakesPerRound - this.state.confrontation.mistakesInCurrentRound;
     const targetVisual = this.getCharacterVisual(target);
-    const correctCard = this.state.inventory.find((item) => item.id === round?.correctEvidence);
-    if (!correctCard && round?.correctEvidence) {
-      console.warn(`[confrontation] correctEvidence "${round.correctEvidence}" not found in inventory`);
+    const contradictableSentence = round?.sentences.find((s) => s.contradictable);
+    const counterEvidenceId = contradictableSentence?.counterEvidenceId;
+    const correctCard = this.state.inventory.find((item) => item.id === counterEvidenceId);
+    if (!correctCard && counterEvidenceId) {
+      console.warn(`[confrontation] counterEvidenceId "${counterEvidenceId}" not found in inventory`);
     }
     const distractors = this.state.inventory
-      .filter((item) => item.isKey && item.id !== round?.correctEvidence)
+      .filter((item) => item.isKey && item.id !== counterEvidenceId)
       .slice(0, 2);
     const reducedEvidence = correctCard ? [correctCard, ...distractors] : distractors;
-    return `<section class="confrontation-shell"><header class="confront-head"><h2>关键对质</h2><p>回合 ${Math.min(this.state.confrontation.roundIndex + 1, caseConfig.confrontation.rounds.length)} / ${caseConfig.confrontation.rounds.length} ｜ 剩余容错 ${remain}</p></header><div class="confront-stage"><img src="${targetVisual?.portrait ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png'}" alt="${target?.name ?? '目标'}" class="confront-portrait" /><article class="defense-line">${round?.defense ?? '对质结束'}</article></div><p class="confront-feedback">${this.state.confrontation.lastFeedback}</p><h3>出示证据</h3><div class="evidence-grid">${reducedEvidence
+    const defenseLine = contradictableSentence?.text ?? '对质结束';
+    return `<section class="confrontation-shell"><header class="confront-head"><h2>关键对质</h2><p>回合 ${Math.min(this.state.confrontation.roundIndex + 1, caseConfig.confrontation.rounds.length)} / ${caseConfig.confrontation.rounds.length} ｜ 剩余容错 ${remain}</p></header><div class="confront-stage"><img src="${targetVisual?.portrait ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png'}" alt="${target?.name ?? '目标'}" class="confront-portrait" /><article class="defense-line">${defenseLine}</article></div><p class="confront-feedback">${this.state.confrontation.lastFeedback}</p><h3>出示证据</h3><div class="evidence-grid">${reducedEvidence
       .map((item) => `<button class="evidence-card" data-present-evidence="${item.id}"><strong>${item.title}</strong><small>${item.source.split(' / ')[0]}</small></button>`)
       .join('')}</div></section>`;
   }
@@ -888,7 +960,8 @@ export class StageOneApp {
     this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(UI_CLICK_AUDIO, 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
     const startConf = this.root.querySelector<HTMLButtonElement>('[data-start-confrontation="true"]');
     if (startConf) startConf.addEventListener('click', () => this.startConfrontation());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const round = loadCaseConfig(this.state.caseId).confrontation.rounds[this.state.confrontation.roundIndex]; this.playSfx(evidenceId === round?.correctEvidence ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, evidenceId === round?.correctEvidence ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const conf = this.state.confrontation; const round = loadCaseConfig(this.state.caseId).confrontation.rounds[conf.roundIndex]; const selectedSentence = round?.sentences.find((s) => s.id === conf.selectedSentenceId); const isCorrect = !!selectedSentence?.counterEvidenceId && evidenceId === selectedSentence.counterEvidenceId; this.playSfx(isCorrect ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, isCorrect ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-select-sentence]').forEach((button) => button.addEventListener('click', () => button.dataset.selectSentence && this.selectSentence(button.dataset.selectSentence)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-timeline-clue]').forEach((button) => button.addEventListener('click', () => button.dataset.selectTimelineClue && this.selectTimelineClue(button.dataset.selectTimelineClue)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-place-slot]').forEach((button) => button.addEventListener('click', () => { const slot = loadCaseConfig(this.state.caseId).timelineSlots.find((s) => s.id === button.dataset.placeSlot); if (slot) this.placeTimeline(slot); }));
     this.root.querySelectorAll<HTMLButtonElement>('[data-submission-field]').forEach((button) => button.addEventListener('click', () => { const field = button.dataset.submissionField as keyof SubmissionState; const value = button.dataset.submissionValue; if (field && value) this.updateSubmission(field, value); }));
