@@ -1,4 +1,4 @@
-import { case001Config } from '../cases/case-001/data';
+import { getCaseById } from '../cases';
 import type { ConditionExpr, DialogueNode, HotspotConfig, StageCaseConfig } from './types';
 
 function validateCondition(condition: ConditionExpr | undefined, caseId: string, field: string): void {
@@ -46,10 +46,7 @@ export function validateCaseConfig(input: unknown): asserts input is StageCaseCo
 }
 
 export function loadCaseConfig(caseId: string): StageCaseConfig {
-  const map: Record<string, unknown> = {
-    [case001Config.id]: case001Config,
-  };
-  const selected = map[caseId] ?? case001Config;
-  validateCaseConfig(selected);
-  return selected;
+  const config = getCaseById(caseId).config;
+  validateCaseConfig(config);
+  return config;
 }
