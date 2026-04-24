@@ -53,10 +53,10 @@ export class StageOneApp {
 
   private state: StageRuntimeState;
 
-  constructor(root: HTMLElement, initialCaseId: string) {
+  constructor({ root, caseId }: { root: HTMLElement; caseId: string }) {
     this.root = root;
     const existingSave = loadStageSave();
-    const caseConfig = loadCaseConfig(existingSave?.caseId ?? initialCaseId);
+    const caseConfig = loadCaseConfig(existingSave?.caseId ?? caseId);
     const firstScene = caseConfig.scenes[0];
 
     this.state = {

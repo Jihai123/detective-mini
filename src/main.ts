@@ -7,4 +7,4 @@ if (!root) {
   throw new Error('缺少 #app 容器，无法挂载侦探主舞台。');
 }
 
-new StageOneApp(root, 'case-001');
+new StageOneApp({ root, caseId: 'case-001' });
