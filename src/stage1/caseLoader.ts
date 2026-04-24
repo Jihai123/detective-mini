@@ -1,4 +1,4 @@
-import { case001Config } from '../data/cases/case-001';
+import { case001Config } from '../cases/case-001/data';
 import type { ConditionExpr, DialogueNode, HotspotConfig, StageCaseConfig } from './types';
 
 function validateCondition(condition: ConditionExpr | undefined, caseId: string, field: string): void {
