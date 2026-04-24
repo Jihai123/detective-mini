@@ -11,7 +11,7 @@ import {
 } from './types';
 
 const SAVE_KEY = 'detective-mini.stage1.save';
-export const SAVE_VERSION = 2 as const;
+export const SAVE_VERSION = 3 as const;
 
 function isScreen(value: string): value is Screen {
   return (SCREENS as readonly string[]).includes(value);
@@ -46,18 +46,42 @@ function isResult(value: unknown): value is ResultState | null {
   return typeof parsed.score === 'number' && typeof parsed.clueRate === 'number' && typeof parsed.submissionCorrect === 'boolean';
 }
 
+// Migration does NOT persist the result back to localStorage.
+// loadStageSave is read-only; the upgraded save will be written back
+// via persistState() after app initialization.
+function migrateSaveV2toV3(raw: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...raw,
+    saveVersion: 3,
+    caseId: typeof raw.caseId === 'string' && raw.caseId ? raw.caseId : 'case-001',
+  };
+}
+
 export function loadStageSave(): StageSaveData | null {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) return null;
 
   try {
-    const p = JSON.parse(raw) as Partial<StageSaveData>;
-    // 当前策略：版本不匹配直接丢弃，不做迁移。未来有线上玩家时再引入 migrator。
-    if (typeof p.saveVersion !== 'number' || p.saveVersion !== SAVE_VERSION) {
-      console.info('[saveStore] save version mismatch, discarding old save');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const version = parsed.saveVersion;
+
+    if (typeof version !== 'number') {
+      console.warn('[saveStore] invalid save format, discarding');
       localStorage.removeItem(SAVE_KEY);
       return null;
     }
+
+    let p: Partial<StageSaveData>;
+    if (version === SAVE_VERSION) {
+      p = parsed as Partial<StageSaveData>;
+    } else if (version === 2) {
+      p = migrateSaveV2toV3(parsed) as Partial<StageSaveData>;
+    } else {
+      console.warn(`[saveStore] unsupported save version ${version}, discarding`);
+      localStorage.removeItem(SAVE_KEY);
+      return null;
+    }
+
     if (!p.caseId || typeof p.caseId !== 'string') return null;
     if (!p.screen || typeof p.screen !== 'string' || !isScreen(p.screen)) return null;
     if (!p.timestamp || typeof p.timestamp !== 'number') return null;
