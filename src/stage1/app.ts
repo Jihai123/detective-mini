@@ -44,6 +44,10 @@ export class StageOneApp {
 
   private loading = true;
 
+  private interpretingClueId: string | null = null;
+
+  private pendingInterpretTier: 'canonical' | 'partial' | 'misread' | null = null;
+
   private primaryNotice = '';
 
   private ambienceAudio: HTMLAudioElement | null = null;
@@ -375,6 +379,11 @@ export class StageOneApp {
 
   private startConfrontation(): void {
     if (!this.state.flags['first-contradiction-found']) return;
+    if (!this.canEnterConfrontation()) {
+      this.primaryNotice = '还有线索未发现或未解读，请先在证据库完成调查与解读';
+      this.render();
+      return;
+    }
 
     const caseConfig = loadCaseConfig(this.state.caseId);
     const holdings = new Set<string>([
@@ -382,6 +391,9 @@ export class StageOneApp {
       ...this.state.testimonies.map((t) => t.id),
     ]);
 
+    // TODO(T3): preResults 用 counterEvidenceId 是 T1 遗留双轨判定。
+    // Bug 1 修复后(canEnterConfrontation 要求 key clue 全部收集且已解读),
+    // preResults 永远 ['pending', ...],此计算是死代码。T3 deduction 重做时一并清理。
     const preResults: Array<'pending' | 'lost'> = caseConfig.confrontation.rounds.map((round) => {
       const contradictableSentence = round.sentences.find((s) => s.contradictable);
       const requiredId = contradictableSentence?.counterEvidenceId;
@@ -458,7 +470,17 @@ export class StageOneApp {
       return;
     }
 
-    if (evidenceId === sentence.counterEvidenceId) {
+    const clueDef = caseConfig.clues.find((c) => c.id === evidenceId);
+    let isHit: boolean;
+    if (clueDef) {
+      const interp = this.getInterpretationForClue(evidenceId);
+      const tierData = interp ? clueDef.interpretations[interp.selectedTier] : null;
+      isHit = tierData?.attacksTestimonyIds.includes(selectedId) ?? false;
+    } else {
+      isHit = evidenceId === sentence.counterEvidenceId;
+    }
+
+    if (isHit) {
       const newResults = [...this.state.confrontation.roundResults];
       newResults[this.state.confrontation.roundIndex] = 'won';
       this.state.confrontation = {
@@ -471,6 +493,8 @@ export class StageOneApp {
       };
       this.advanceToNextPlayableRound();
     } else {
+      // TODO(T2 后续): misread 解读应有差异化失败反应,
+      // 现暂复用 canonical 选错时机的失败流程。case-002 三档时再分叉。
       const mistakesInCurrentRound = this.state.confrontation.mistakesInCurrentRound + 1;
       if (mistakesInCurrentRound > conf.maxMistakesPerRound) {
         const newResults = [...this.state.confrontation.roundResults];
@@ -510,9 +534,11 @@ export class StageOneApp {
 
     if (!hasMajorityWin) {
       this.state.confrontation = {
-        ...this.state.confrontation,
-        roundIndex: lastRoundIndex,
-        status: wonCount === 0 ? 'allLost' : 'ongoing',
+        roundIndex: 0,
+        mistakesInCurrentRound: 0,
+        roundResults: [],
+        selectedSentenceId: null,
+        status: 'idle',
         lastFeedback: conf.onAllLost ?? '对质未能充分击穿证人的防线——或许证据还没有收集齐全。',
       };
       this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
@@ -628,8 +654,7 @@ export class StageOneApp {
     this.render();
   }
 
-  // T2-UI 层接入时调用（protected 使 noUnusedLocals 不报错，T2-UI 接入时改回 private）
-  protected setInterpretation(clueId: string, tier: 'canonical' | 'partial' | 'misread'): void {
+  private setInterpretation(clueId: string, tier: 'canonical' | 'partial' | 'misread'): void {
     const existing = this.state.interpretations.findIndex((c) => c.clueId === clueId);
     const choice: ClueInterpretationChoice = { clueId, selectedTier: tier, chosenAt: Date.now() };
     if (existing >= 0) {
@@ -642,12 +667,64 @@ export class StageOneApp {
     this.persistState();
   }
 
-  protected getInterpretationForClue(clueId: string): ClueInterpretationChoice | null {
+  private getInterpretationForClue(clueId: string): ClueInterpretationChoice | null {
     return this.state.interpretations.find((c) => c.clueId === clueId) ?? null;
   }
 
-  protected isClueInterpreted(clueId: string): boolean {
+  private isClueInterpreted(clueId: string): boolean {
     return this.state.interpretations.some((c) => c.clueId === clueId);
+  }
+
+  private canEnterConfrontation(): boolean {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const keyClues = caseConfig.clues.filter((c) => c.isKey);
+    return keyClues.every((c) =>
+      this.state.inventory.some((i) => i.id === c.id) &&
+      this.isClueInterpreted(c.id)
+    );
+  }
+
+  private clueIdHash(clueId: string): number {
+    return clueId.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  }
+
+  private getInterpretOptions(clue: ClueConfig): Array<{ tier: 'canonical' | 'partial' | 'misread'; label: string }> {
+    const all: Array<{ tier: 'canonical' | 'partial' | 'misread'; label: string }> = [
+      { tier: 'canonical', label: clue.interpretations.canonical.label },
+      ...(clue.interpretations.partial ? [{ tier: 'partial' as const, label: clue.interpretations.partial.label }] : []),
+      ...(clue.interpretations.misread ? [{ tier: 'misread' as const, label: clue.interpretations.misread.label }] : []),
+    ];
+    return this.clueIdHash(clue.id) % 2 === 1 ? [...all].reverse() : all;
+  }
+
+  private openInterpretOverlay(clueId: string): void {
+    const existing = this.getInterpretationForClue(clueId);
+    this.interpretingClueId = clueId;
+    this.pendingInterpretTier = existing?.selectedTier ?? null;
+    this.state.overlay = 'interpret';
+    this.render();
+  }
+
+  private closeInterpretOverlay(): void {
+    this.interpretingClueId = null;
+    this.pendingInterpretTier = null;
+    this.state.overlay = null;
+    this.render();
+  }
+
+  private selectInterpretTier(tier: 'canonical' | 'partial' | 'misread'): void {
+    this.pendingInterpretTier = tier;
+    this.render();
+  }
+
+  private confirmInterpret(): void {
+    if (!this.interpretingClueId || !this.pendingInterpretTier) return;
+    this.setInterpretation(this.interpretingClueId, this.pendingInterpretTier);
+    this.primaryNotice = '解读已记录';
+    this.interpretingClueId = null;
+    this.pendingInterpretTier = null;
+    this.state.overlay = null;
+    this.render();
   }
 
   private renderSceneTabs(): string {
@@ -735,6 +812,32 @@ export class StageOneApp {
     return `<section class="overlay"><div class="inspect-card"><h3>回退提示</h3><p>关键证据不足，请补齐后重新进入关键对质。</p><button data-close-overlay="true" class="primary-btn">继续调查</button></div></section>`;
   }
 
+  private renderClueCards(): string {
+    if (this.state.inventory.length === 0) return '<p>暂无收集证据</p>';
+    return this.state.inventory
+      .map((clue) => {
+        const interpreted = this.isClueInterpreted(clue.id);
+        return `<button class="clue-evidence-card" data-open-interpret="${clue.id}"><span class="clue-evidence-title">${clue.title}</span><span class="clue-badge ${interpreted ? 'is-interpreted' : ''}">${interpreted ? '已解读' : '未解读'}</span></button>`;
+      })
+      .join('');
+  }
+
+  private renderInterpretOverlay(): string {
+    if (this.state.overlay !== 'interpret' || !this.interpretingClueId) return '';
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const clue = caseConfig.clues.find((c) => c.id === this.interpretingClueId);
+    if (!clue) return '';
+    const description = clue.discoveryLayers?.[0]?.description ?? clue.description;
+    const options = this.getInterpretOptions(clue);
+    const optionsHtml = options
+      .map((opt) => {
+        const isSelected = this.pendingInterpretTier === opt.tier;
+        return `<button class="interpret-option ${isSelected ? 'is-selected' : ''}" data-interpret-tier="${opt.tier}">${opt.label}</button>`;
+      })
+      .join('');
+    return `<section class="overlay interpret-overlay"><div class="interpret-card"><header class="interpret-header"><button class="ghost-btn interpret-back-btn" data-close-interpret="true">← 返回</button><h3 class="interpret-clue-title">${clue.title}</h3></header><p class="interpret-description">${description}</p><div class="interpret-options-list">${optionsHtml}</div><button class="primary-btn interpret-confirm-btn" data-confirm-interpret="true" ${this.pendingInterpretTier ? '' : 'disabled'}>确认解读</button></div></section>`;
+  }
+
   private renderOption(option: DialogueOption): string {
     const check = this.evalCondition(option.unlockCondition ?? option.condition);
     return `<button class="dialogue-option ${check.ok ? '' : 'is-locked'}" data-dialogue-to="${option.to}" ${check.ok ? '' : 'disabled'}><span class="option-arrow">›</span><span><strong>${option.label}</strong></span>${!check.ok && DEV_MODE ? `<small>未解锁：${check.missing.join(' / ')}</small>` : ''}</button>`;
@@ -766,7 +869,7 @@ export class StageOneApp {
     const hasSelection = conf.selectedSentenceId !== null;
     type EvidenceDisplay = { id: string; title: string; source: string };
     const clueEvidence: EvidenceDisplay[] = this.state.inventory
-      .filter((i) => i.isKey)
+      .filter((i) => this.isClueInterpreted(i.id))
       .map((i) => ({ id: i.id, title: i.title, source: i.source.split(' / ')[0] }));
     const testimonyEvidence: EvidenceDisplay[] = this.state.testimonies.map((t) => {
       const char = caseConfig.characters.find((c) => c.id === t.sourceCharacterId);
@@ -834,6 +937,7 @@ export class StageOneApp {
     const wipBanner = `<div class="wip-banner">⚙️ 推理阶段的交互玩法即将升级（T2-T3），当前仅展示核心数据。</div>`;
     return `
       <div class="screen-scrollable">
+        <div class="deduction-top-bar"><button class="ghost-btn" data-screen="investigation">返回调查</button></div>
         ${wipBanner}
         <section class="screen-panel">
           <h2>时间验证</h2>
@@ -894,7 +998,7 @@ export class StageOneApp {
     };
     const label = FIELD_LABELS[field];
     return `<div class="submission-group"><h3>${label}</h3><div class="evidence-grid">${options
-      .map((opt) => `<button class="evidence-card ${this.state.submission[field] === opt ? 'is-selected' : ''}" data-submission-field="${field}" data-submission-value="${opt}">${opt}</button>`)
+      .map((opt) => `<button class="evidence-card ${this.state.submission[field] === opt ? 'is-selected' : ''}" data-submission-field="${field}" data-submission-value="${opt.replace(/"/g, '&quot;')}">${opt}</button>`)
       .join('')}</div></div>`;
   }
 
@@ -921,15 +1025,6 @@ export class StageOneApp {
     `;
   }
 
-  private getConfirmedAnomalies(): string[] {
-    const anomalies: string[] = [];
-    if (this.state.inventory.some((item) => item.id === 'clue-envelope-opened')) anomalies.push('封套存在二次开启痕迹');
-    if (this.state.inventory.some((item) => item.id === 'clue-doorlog-0728')) anomalies.push('已掌握 07:28 门禁进入记录');
-    if (this.state.inventory.some((item) => item.id === 'clue-camera-gap-0731')) anomalies.push('监控在 07:31 附近存在空窗');
-    if (this.state.inventory.some((item) => item.id === 'clue-shred-label')) anomalies.push('碎纸桶发现结论页标签残片');
-    return anomalies.slice(0, 3);
-  }
-
   private getNextActions(): string[] {
     const actions: string[] = [];
     if (!this.state.flags['first-contradiction-found']) actions.push('追问周岚，确认“封存后未触碰”是否成立');
@@ -940,7 +1035,6 @@ export class StageOneApp {
   }
 
   private renderInvestigationBody(background: string): string {
-    const anomalies = this.getConfirmedAnomalies();
     const nextActions = this.getNextActions();
     const canStartConfrontation = this.state.flags['first-contradiction-found'];
     const chenxuWitnessCollected = this.state.testimonies.some((t) => t.id === 'testimony-chenxu-witness');
@@ -950,10 +1044,10 @@ export class StageOneApp {
         <div class="investigation-stage" style="background-image:url('${background}'), url('/assets/cases/case-001/scenes/review_room.jpg')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>
         <aside class="pressure-panel">
           <section><h3>调查判断</h3><p>${this.state.objective}</p></section>
-          <section><h3>已确认线索</h3><ul>${(anomalies.length ? anomalies : ['暂无已确认线索']).map((item) => `<li>${item}</li>`).join('')}</ul></section>
+          <section class="clue-cards-section"><h3>证据库</h3>${this.renderClueCards()}</section>
           <section><h3>下一步</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
             ${canStartConfrontation && !chenxuWitnessCollected ? '<p class="confrontation-hint">⚠ 证据可能尚未齐全：尝试再次追问陈序，或继续探索其他场景。</p>' : ''}
-            ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}
+            ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? `<button class="primary-btn" data-start-confrontation="true" ${this.canEnterConfrontation() ? '' : 'disabled'}>进入关键对质</button>` : ''}
             ${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}
           </section>
         </aside>
@@ -1072,7 +1166,7 @@ export class StageOneApp {
           <section class="visual-stage">
             ${DEV_MODE ? `<div class="screen-tag">SCREEN / ${this.state.screen.toUpperCase()}</div>` : ''}
             ${this.getScreenBody(caseConfig.scenes.find((s) => s.id === this.state.currentSceneId)?.background ?? caseConfig.scenes[0].background)}
-            ${this.renderInspectOverlay()}${this.renderDialogueOverlay()}${this.renderHintOverlay()}
+            ${this.renderInspectOverlay()}${this.renderDialogueOverlay()}${this.renderHintOverlay()}${this.renderInterpretOverlay()}
           </section>
           ${DEV_MODE && !archiveOrIntro ? `<aside class="case-board ${this.boardOpen ? 'is-open' : ''}">
             <h2>案件板</h2>
@@ -1081,7 +1175,7 @@ export class StageOneApp {
             <section><h3>当前 Objective</h3><p>${this.state.objective}</p></section>
             <section><h3>案发时段 / 地点</h3><p>${caseConfig.timeRange} · ${caseConfig.location}</p></section>
             <section><h3>第一处矛盾</h3><p>${this.state.contradictionMessage ?? '尚未成立'}</p></section>
-            <section><h3>关键对质</h3><p>${this.state.flags['confrontation-complete'] ? '已完成' : '未完成'}</p>${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}</section>
+            <section><h3>关键对质</h3><p>${this.state.flags['confrontation-complete'] ? '已完成' : '未完成'}</p>${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? `<button class="primary-btn" data-start-confrontation="true" ${this.canEnterConfrontation() ? '' : 'disabled'}>进入关键对质</button>` : ''}${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}</section>
             ${DEV_MODE ? `<section><h3>DEV 事件</h3><ul class="event-feed">${this.state.eventFeed.map((evt) => `<li>${evt.type}</li>`).join('')}</ul></section>` : ''}
           </aside>` : ''}
         </section>
@@ -1125,7 +1219,7 @@ export class StageOneApp {
     this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(UI_CLICK_AUDIO, 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
     const startConf = this.root.querySelector<HTMLButtonElement>('[data-start-confrontation="true"]');
     if (startConf) startConf.addEventListener('click', () => this.startConfrontation());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const conf = this.state.confrontation; const round = loadCaseConfig(this.state.caseId).confrontation.rounds[conf.roundIndex]; const selectedSentence = round?.sentences.find((s) => s.id === conf.selectedSentenceId); const isCorrect = !!selectedSentence?.counterEvidenceId && evidenceId === selectedSentence.counterEvidenceId; this.playSfx(isCorrect ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, isCorrect ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const conf = this.state.confrontation; const caseConf = loadCaseConfig(this.state.caseId); const selectedSentenceId = conf.selectedSentenceId ?? ''; const clueDef = caseConf.clues.find((c) => c.id === evidenceId); const interp = clueDef ? this.getInterpretationForClue(evidenceId) : null; const tierData = interp && clueDef ? clueDef.interpretations[interp.selectedTier] : null; const isCorrect = !!(tierData?.attacksTestimonyIds.includes(selectedSentenceId)); this.playSfx(isCorrect ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, isCorrect ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-sentence]').forEach((button) => button.addEventListener('click', () => button.dataset.selectSentence && this.selectSentence(button.dataset.selectSentence)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-timeline-clue]').forEach((button) => button.addEventListener('click', () => button.dataset.selectTimelineClue && this.selectTimelineClue(button.dataset.selectTimelineClue)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-place-slot]').forEach((button) => button.addEventListener('click', () => { const slot = loadCaseConfig(this.state.caseId).timelineSlots.find((s) => s.id === button.dataset.placeSlot); if (slot) this.placeTimeline(slot); }));
@@ -1139,5 +1233,15 @@ export class StageOneApp {
       this.boardOpen = !this.boardOpen;
       this.render();
     });
+    this.root.querySelectorAll<HTMLButtonElement>('[data-open-interpret]').forEach((btn) =>
+      btn.addEventListener('click', () => { const id = btn.dataset.openInterpret; if (id) this.openInterpretOverlay(id); })
+    );
+    this.root.querySelectorAll<HTMLButtonElement>('[data-interpret-tier]').forEach((btn) =>
+      btn.addEventListener('click', () => { const tier = btn.dataset.interpretTier as 'canonical' | 'partial' | 'misread'; if (tier) this.selectInterpretTier(tier); })
+    );
+    const confirmInterpret = this.root.querySelector<HTMLButtonElement>('[data-confirm-interpret="true"]');
+    if (confirmInterpret) confirmInterpret.addEventListener('click', () => this.confirmInterpret());
+    const closeInterpret = this.root.querySelector<HTMLButtonElement>('[data-close-interpret="true"]');
+    if (closeInterpret) closeInterpret.addEventListener('click', () => this.closeInterpretOverlay());
   }
 }

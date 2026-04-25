@@ -317,6 +317,27 @@ button { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px;
   .result-rating span { font-size: 70px; }
 }
 
+.clue-cards-section { display: grid; gap: 6px; }
+.clue-evidence-card { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; width: 100%; padding: 8px 10px; border: 1px solid rgba(159,181,255,.28); border-radius: 8px; background: rgba(14,22,44,.7); color: #dde7ff; cursor: pointer; transition: background .15s, border-color .15s; }
+.clue-evidence-card:hover { background: rgba(28,42,80,.85); border-color: rgba(159,181,255,.55); }
+.clue-evidence-title { font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clue-badge { flex-shrink: 0; font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(120,130,160,.3); color: #9aabcf; border: 1px solid rgba(120,130,160,.35); letter-spacing: .04em; }
+.clue-badge.is-interpreted { background: rgba(80,185,120,.18); color: #8de8b2; border-color: rgba(80,185,120,.45); }
+
+.interpret-overlay { align-items: center; }
+.interpret-card { width: min(700px, 94%); border-radius: 12px; border: 1px solid rgba(159,181,255,.48); background: linear-gradient(140deg, rgba(12,22,48,.96), rgba(8,14,30,.97)); padding: 20px; display: grid; gap: 14px; }
+.interpret-header { display: flex; align-items: center; gap: 12px; }
+.interpret-back-btn { flex-shrink: 0; font-size: 13px; padding: 7px 12px; }
+.interpret-clue-title { margin: 0; font-size: 22px; font-weight: 500; color: #dde8ff; }
+.interpret-description { margin: 0; color: #b8ccf5; line-height: 1.7; font-size: 15px; padding: 10px 12px; border: 1px solid rgba(140,162,220,.28); border-radius: 8px; background: rgba(8,14,30,.6); }
+.interpret-options-list { display: grid; gap: 8px; }
+.interpret-option { text-align: left; padding: 12px 14px; border: 1px solid rgba(159,181,255,.3); border-radius: 8px; background: rgba(20,32,64,.6); color: #d4e0ff; line-height: 1.55; font-size: 14px; cursor: pointer; transition: background .15s, border-color .15s; }
+.interpret-option:hover { background: rgba(36,56,108,.7); border-color: rgba(159,181,255,.6); }
+.interpret-option.is-selected { background: rgba(90,120,220,.22); border-color: #7096ff; color: #e8f0ff; box-shadow: 0 0 0 2px rgba(112,150,255,.25); }
+.interpret-confirm-btn { width: 100%; margin-top: 4px; }
+
+.deduction-top-bar { padding: 8px 0 4px; }
+
 .wip-banner { background: rgba(255,170,80,.12); border: 1px solid rgba(255,170,80,.4); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; color: #ffd6a3; font-size: 14px; line-height: 1.5; }
 .confrontation-hint { margin: 8px 0; padding: 8px 12px; background: rgba(255,200,80,.08); border-left: 3px solid rgba(255,200,80,.5); color: #ffe0a3; font-size: 13px; }
 .deduction-guide { margin: 8px 0 16px 0; padding: 10px 14px; background: rgba(255,200,80,.06); border-left: 3px solid rgba(255,200,80,.5); color: #ffe0a3; font-size: 13px; line-height: 1.7; }

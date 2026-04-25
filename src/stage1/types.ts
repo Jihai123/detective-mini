@@ -1,6 +1,6 @@
 export const SCREENS = ['archive', 'intro', 'investigation', 'confrontation', 'deduction', 'result'] as const;
 
-export const OVERLAYS = ['dialogue', 'evidence', 'timeline', 'submission', 'hint', 'inspect'] as const;
+export const OVERLAYS = ['dialogue', 'evidence', 'timeline', 'submission', 'hint', 'inspect', 'interpret'] as const;
 
 export type Screen = (typeof SCREENS)[number];
 export type Overlay = (typeof OVERLAYS)[number] | null;
