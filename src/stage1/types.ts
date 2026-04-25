@@ -62,6 +62,46 @@ export type CharacterConfig = {
   dialogueEntryNodeId: string;
 };
 
+// T2 激活
+export interface ClueInterpretation {
+  label: string;
+  summary?: string;
+  attacksTestimonyIds: string[];
+}
+
+// T2 激活
+export interface ClueInterpretations {
+  canonical: ClueInterpretation;
+  partial?: ClueInterpretation;
+  misread?: ClueInterpretation;
+}
+
+// T2 激活
+export type ClueRole = 'confrontation' | 'emotional' | 'both';
+
+// T5 预留
+export interface ClueDiscoveryLayer {
+  layerId: string;
+  description: string;
+  unlockAction?: string;
+}
+
+// T6 预留
+export interface ClueUnlockRequirement {
+  requiredClueIds?: string[];
+  requiredInterpretations?: Array<{ clueId: string; tier: 'canonical' | 'partial' | 'misread' }>;
+}
+
+// T2 激活
+export interface ClueInterpretationChoice {
+  clueId: string;
+  selectedTier: 'canonical' | 'partial' | 'misread';
+  chosenAt: number;
+}
+
+// T2 激活
+export type InterpretationState = ClueInterpretationChoice[];
+
 export type ClueConfig = {
   id: string;
   title: string;
@@ -69,6 +109,14 @@ export type ClueConfig = {
   source: string;
   isKey: boolean;
   image?: string;
+  // T2 激活
+  role: ClueRole;
+  // T2 激活
+  interpretations: ClueInterpretations;
+  // T5 预留
+  discoveryLayers?: ClueDiscoveryLayer[];
+  // T6 预留
+  unlockRequirement?: ClueUnlockRequirement;
 };
 
 export type TestimonyConfig = {
@@ -228,6 +276,8 @@ export type StageRuntimeState = {
   wrongSubmissionCount: number;
   lastDiscoveryAt: number;
   eventFeed: StandardEvent[];
+  // T2 激活
+  interpretations: InterpretationState;
 };
 
 export type StageSaveData = {
@@ -250,6 +300,8 @@ export type StageSaveData = {
   hintCount: number;
   wrongSubmissionCount: number;
   lastDiscoveryAt: number;
+  // T2 激活
+  interpretations: InterpretationState;
 };
 
 export type StandardEventName =
