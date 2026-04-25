@@ -10,8 +10,27 @@ import {
   type TimelineState,
 } from './types';
 
-const SAVE_KEY = 'detective-mini.stage1.save';
-export const SAVE_VERSION = 4 as const;
+const LEGACY_SAVE_KEY = 'detective-mini.stage1.save';
+export const SAVE_VERSION = 5 as const;
+
+export function getSaveKey(caseId: string): string {
+  return `detective-mini.stage1.save.${caseId}`;
+}
+
+// One-shot startup migration: moves the old unnamespaced key to the case-001
+// namespace so existing players keep their progress after the v5 update.
+// Safe to call multiple times — exits immediately if the legacy key is gone.
+export function migrateLegacySave(): void {
+  const legacy = localStorage.getItem(LEGACY_SAVE_KEY);
+  if (!legacy) return;
+  const newKey = getSaveKey('case-001');
+  // Only write if the namespace key doesn't already exist, so we never
+  // clobber a newer per-case save with a stale legacy blob.
+  if (!localStorage.getItem(newKey)) {
+    localStorage.setItem(newKey, legacy);
+  }
+  localStorage.removeItem(LEGACY_SAVE_KEY);
+}
 
 function isScreen(value: string): value is Screen {
   return (SCREENS as readonly string[]).includes(value);
@@ -46,7 +65,7 @@ function isResult(value: unknown): value is ResultState | null {
   return typeof parsed.score === 'number' && typeof parsed.clueRate === 'number' && typeof parsed.submissionCorrect === 'boolean';
 }
 
-// Migration does NOT persist the result back to localStorage.
+// Each migration function is pure; it does NOT write back to localStorage.
 // loadStageSave is read-only; the upgraded save will be written back
 // via persistState() after app initialization.
 function migrateSaveV2toV3(raw: Record<string, unknown>): Record<string, unknown> {
@@ -61,8 +80,13 @@ function migrateSaveV3toV4(raw: Record<string, unknown>): Record<string, unknown
   return { ...raw, saveVersion: 4, interpretations: [] };
 }
 
-export function loadStageSave(): StageSaveData | null {
-  const raw = localStorage.getItem(SAVE_KEY);
+function migrateSaveV4toV5(raw: Record<string, unknown>): Record<string, unknown> {
+  return { ...raw, saveVersion: 5 };
+}
+
+export function loadStageSave(caseId: string): StageSaveData | null {
+  const key = getSaveKey(caseId);
+  const raw = localStorage.getItem(key);
   if (!raw) return null;
 
   try {
@@ -71,20 +95,22 @@ export function loadStageSave(): StageSaveData | null {
 
     if (typeof version !== 'number') {
       console.warn('[saveStore] invalid save format, discarding');
-      localStorage.removeItem(SAVE_KEY);
+      localStorage.removeItem(key);
       return null;
     }
 
     let p: Partial<StageSaveData>;
-    if (version === 4) {
+    if (version === 5) {
       p = parsed as Partial<StageSaveData>;
+    } else if (version === 4) {
+      p = migrateSaveV4toV5(parsed) as Partial<StageSaveData>;
     } else if (version === 3) {
-      p = migrateSaveV3toV4(parsed) as Partial<StageSaveData>;
+      p = migrateSaveV4toV5(migrateSaveV3toV4(parsed)) as Partial<StageSaveData>;
     } else if (version === 2) {
-      p = migrateSaveV3toV4(migrateSaveV2toV3(parsed)) as Partial<StageSaveData>;
+      p = migrateSaveV4toV5(migrateSaveV3toV4(migrateSaveV2toV3(parsed))) as Partial<StageSaveData>;
     } else {
       console.warn(`[saveStore] unsupported save version ${version}, discarding`);
-      localStorage.removeItem(SAVE_KEY);
+      localStorage.removeItem(key);
       return null;
     }
 
@@ -110,7 +136,7 @@ export function loadStageSave(): StageSaveData | null {
   }
 }
 
-export function saveStageState(input: Omit<StageSaveData, 'saveVersion'>): void {
+export function saveStageState(caseId: string, input: Omit<StageSaveData, 'saveVersion'>): void {
   const payload = { ...input, saveVersion: SAVE_VERSION };
-  localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+  localStorage.setItem(getSaveKey(caseId), JSON.stringify(payload));
 }
