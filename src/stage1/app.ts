@@ -380,7 +380,7 @@ export class StageOneApp {
   private startConfrontation(): void {
     if (!this.state.flags['first-contradiction-found']) return;
     if (!this.canEnterConfrontation()) {
-      this.primaryNotice = '还有线索未发现，请继续调查';
+      this.primaryNotice = '还有线索未发现或未解读，请先在证据库完成调查与解读';
       this.render();
       return;
     }
@@ -391,6 +391,9 @@ export class StageOneApp {
       ...this.state.testimonies.map((t) => t.id),
     ]);
 
+    // TODO(T3): preResults 用 counterEvidenceId 是 T1 遗留双轨判定。
+    // Bug 1 修复后(canEnterConfrontation 要求 key clue 全部收集且已解读),
+    // preResults 永远 ['pending', ...],此计算是死代码。T3 deduction 重做时一并清理。
     const preResults: Array<'pending' | 'lost'> = caseConfig.confrontation.rounds.map((round) => {
       const contradictableSentence = round.sentences.find((s) => s.contradictable);
       const requiredId = contradictableSentence?.counterEvidenceId;
@@ -531,9 +534,11 @@ export class StageOneApp {
 
     if (!hasMajorityWin) {
       this.state.confrontation = {
-        ...this.state.confrontation,
-        roundIndex: lastRoundIndex,
-        status: wonCount === 0 ? 'allLost' : 'ongoing',
+        roundIndex: 0,
+        mistakesInCurrentRound: 0,
+        roundResults: [],
+        selectedSentenceId: null,
+        status: 'idle',
         lastFeedback: conf.onAllLost ?? '对质未能充分击穿证人的防线——或许证据还没有收集齐全。',
       };
       this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
@@ -672,7 +677,11 @@ export class StageOneApp {
 
   private canEnterConfrontation(): boolean {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    return caseConfig.clues.filter((c) => c.isKey).every((c) => this.state.inventory.some((i) => i.id === c.id));
+    const keyClues = caseConfig.clues.filter((c) => c.isKey);
+    return keyClues.every((c) =>
+      this.state.inventory.some((i) => i.id === c.id) &&
+      this.isClueInterpreted(c.id)
+    );
   }
 
   private clueIdHash(clueId: string): number {
@@ -1210,7 +1219,7 @@ export class StageOneApp {
     this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(UI_CLICK_AUDIO, 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
     const startConf = this.root.querySelector<HTMLButtonElement>('[data-start-confrontation="true"]');
     if (startConf) startConf.addEventListener('click', () => this.startConfrontation());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const conf = this.state.confrontation; const round = loadCaseConfig(this.state.caseId).confrontation.rounds[conf.roundIndex]; const selectedSentence = round?.sentences.find((s) => s.id === conf.selectedSentenceId); const isCorrect = !!selectedSentence?.counterEvidenceId && evidenceId === selectedSentence.counterEvidenceId; this.playSfx(isCorrect ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, isCorrect ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const conf = this.state.confrontation; const caseConf = loadCaseConfig(this.state.caseId); const selectedSentenceId = conf.selectedSentenceId ?? ''; const clueDef = caseConf.clues.find((c) => c.id === evidenceId); const interp = clueDef ? this.getInterpretationForClue(evidenceId) : null; const tierData = interp && clueDef ? clueDef.interpretations[interp.selectedTier] : null; const isCorrect = !!(tierData?.attacksTestimonyIds.includes(selectedSentenceId)); this.playSfx(isCorrect ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, isCorrect ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-sentence]').forEach((button) => button.addEventListener('click', () => button.dataset.selectSentence && this.selectSentence(button.dataset.selectSentence)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-timeline-clue]').forEach((button) => button.addEventListener('click', () => button.dataset.selectTimelineClue && this.selectTimelineClue(button.dataset.selectTimelineClue)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-place-slot]').forEach((button) => button.addEventListener('click', () => { const slot = loadCaseConfig(this.state.caseId).timelineSlots.find((s) => s.id === button.dataset.placeSlot); if (slot) this.placeTimeline(slot); }));
