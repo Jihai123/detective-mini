@@ -11,7 +11,7 @@ import {
 } from './types';
 
 const SAVE_KEY = 'detective-mini.stage1.save';
-export const SAVE_VERSION = 3 as const;
+export const SAVE_VERSION = 4 as const;
 
 function isScreen(value: string): value is Screen {
   return (SCREENS as readonly string[]).includes(value);
@@ -57,6 +57,10 @@ function migrateSaveV2toV3(raw: Record<string, unknown>): Record<string, unknown
   };
 }
 
+function migrateSaveV3toV4(raw: Record<string, unknown>): Record<string, unknown> {
+  return { ...raw, saveVersion: 4, interpretations: [] };
+}
+
 export function loadStageSave(): StageSaveData | null {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) return null;
@@ -72,10 +76,12 @@ export function loadStageSave(): StageSaveData | null {
     }
 
     let p: Partial<StageSaveData>;
-    if (version === SAVE_VERSION) {
+    if (version === 4) {
       p = parsed as Partial<StageSaveData>;
+    } else if (version === 3) {
+      p = migrateSaveV3toV4(parsed) as Partial<StageSaveData>;
     } else if (version === 2) {
-      p = migrateSaveV2toV3(parsed) as Partial<StageSaveData>;
+      p = migrateSaveV3toV4(migrateSaveV2toV3(parsed)) as Partial<StageSaveData>;
     } else {
       console.warn(`[saveStore] unsupported save version ${version}, discarding`);
       localStorage.removeItem(SAVE_KEY);
@@ -97,6 +103,7 @@ export function loadStageSave(): StageSaveData | null {
     if (!isSubmission(p.submission)) return null;
     if (!isResult(p.result)) return null;
     if (typeof p.hintCount !== 'number' || typeof p.wrongSubmissionCount !== 'number' || typeof p.lastDiscoveryAt !== 'number') return null;
+    if (!Array.isArray(p.interpretations)) return null;
     return p as StageSaveData;
   } catch {
     return null;

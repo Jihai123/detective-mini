@@ -3,6 +3,7 @@ import { loadStageSave, saveStageState } from './saveStore';
 import type {
   CharacterConfig,
   ClueConfig,
+  ClueInterpretationChoice,
   ConditionExpr,
   ConditionResult,
   DialogueEffect,
@@ -86,6 +87,7 @@ export class StageOneApp {
       wrongSubmissionCount: existingSave?.wrongSubmissionCount ?? 0,
       lastDiscoveryAt: existingSave?.lastDiscoveryAt ?? Date.now(),
       eventFeed: [],
+      interpretations: existingSave?.interpretations ?? [],
     };
 
     this.events.addEventListener(ENGINE_EVENT_NAME, (evt) => {
@@ -227,6 +229,7 @@ export class StageOneApp {
       hintCount: this.state.hintCount,
       wrongSubmissionCount: this.state.wrongSubmissionCount,
       lastDiscoveryAt: this.state.lastDiscoveryAt,
+      interpretations: this.state.interpretations,
     });
   }
 
@@ -623,6 +626,28 @@ export class StageOneApp {
     this.state.inspectCard = null;
     this.state.dialogueState = null;
     this.render();
+  }
+
+  // T2-UI 层接入时调用（protected 使 noUnusedLocals 不报错，T2-UI 接入时改回 private）
+  protected setInterpretation(clueId: string, tier: 'canonical' | 'partial' | 'misread'): void {
+    const existing = this.state.interpretations.findIndex((c) => c.clueId === clueId);
+    const choice: ClueInterpretationChoice = { clueId, selectedTier: tier, chosenAt: Date.now() };
+    if (existing >= 0) {
+      const updated = [...this.state.interpretations];
+      updated[existing] = choice;
+      this.state.interpretations = updated;
+    } else {
+      this.state.interpretations = [...this.state.interpretations, choice];
+    }
+    this.persistState();
+  }
+
+  protected getInterpretationForClue(clueId: string): ClueInterpretationChoice | null {
+    return this.state.interpretations.find((c) => c.clueId === clueId) ?? null;
+  }
+
+  protected isClueInterpreted(clueId: string): boolean {
+    return this.state.interpretations.some((c) => c.clueId === clueId);
   }
 
   private renderSceneTabs(): string {
