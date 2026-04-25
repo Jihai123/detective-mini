@@ -998,7 +998,7 @@ export class StageOneApp {
     };
     const label = FIELD_LABELS[field];
     return `<div class="submission-group"><h3>${label}</h3><div class="evidence-grid">${options
-      .map((opt) => `<button class="evidence-card ${this.state.submission[field] === opt ? 'is-selected' : ''}" data-submission-field="${field}" data-submission-value="${opt}">${opt}</button>`)
+      .map((opt) => `<button class="evidence-card ${this.state.submission[field] === opt ? 'is-selected' : ''}" data-submission-field="${field}" data-submission-value="${opt.replace(/"/g, '&quot;')}">${opt}</button>`)
       .join('')}</div></div>`;
   }
 
@@ -1047,7 +1047,7 @@ export class StageOneApp {
           <section class="clue-cards-section"><h3>证据库</h3>${this.renderClueCards()}</section>
           <section><h3>下一步</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
             ${canStartConfrontation && !chenxuWitnessCollected ? '<p class="confrontation-hint">⚠ 证据可能尚未齐全：尝试再次追问陈序，或继续探索其他场景。</p>' : ''}
-            ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}
+            ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? `<button class="primary-btn" data-start-confrontation="true" ${this.canEnterConfrontation() ? '' : 'disabled'}>进入关键对质</button>` : ''}
             ${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}
           </section>
         </aside>
@@ -1175,7 +1175,7 @@ export class StageOneApp {
             <section><h3>当前 Objective</h3><p>${this.state.objective}</p></section>
             <section><h3>案发时段 / 地点</h3><p>${caseConfig.timeRange} · ${caseConfig.location}</p></section>
             <section><h3>第一处矛盾</h3><p>${this.state.contradictionMessage ?? '尚未成立'}</p></section>
-            <section><h3>关键对质</h3><p>${this.state.flags['confrontation-complete'] ? '已完成' : '未完成'}</p>${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? '<button class="primary-btn" data-start-confrontation="true">进入关键对质</button>' : ''}${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}</section>
+            <section><h3>关键对质</h3><p>${this.state.flags['confrontation-complete'] ? '已完成' : '未完成'}</p>${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? `<button class="primary-btn" data-start-confrontation="true" ${this.canEnterConfrontation() ? '' : 'disabled'}>进入关键对质</button>` : ''}${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}</section>
             ${DEV_MODE ? `<section><h3>DEV 事件</h3><ul class="event-feed">${this.state.eventFeed.map((evt) => `<li>${evt.type}</li>`).join('')}</ul></section>` : ''}
           </aside>` : ''}
         </section>
