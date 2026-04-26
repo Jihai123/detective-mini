@@ -1,5 +1,6 @@
 import {
   SCREENS,
+  type ClueRuntimeState,
   type ConfrontationState,
   type InventoryClue,
   type InventoryTestimony,
@@ -11,7 +12,7 @@ import {
 } from './types';
 
 const LEGACY_SAVE_KEY = 'detective-mini.stage1.save';
-export const SAVE_VERSION = 5 as const;
+export const SAVE_VERSION = 6 as const;
 
 export function getSaveKey(caseId: string): string {
   return `detective-mini.stage1.save.${caseId}`;
@@ -41,7 +42,7 @@ function isConfrontation(value: unknown): value is ConfrontationState {
   const parsed = value as Partial<ConfrontationState>;
   const validStatus = parsed.status === 'idle' || parsed.status === 'ongoing' || parsed.status === 'success' || parsed.status === 'allLost';
   const validSelectedSentenceId = parsed.selectedSentenceId === null || typeof parsed.selectedSentenceId === 'string';
-  const validRoundResults = Array.isArray(parsed.roundResults) && parsed.roundResults.every((r) => r === 'pending' || r === 'won' || r === 'lost');
+  const validRoundResults = Array.isArray(parsed.roundResults) && parsed.roundResults.every((r) => r === 'pending' || r === 'won' || r === 'lost' || r === 'draw');
   return typeof parsed.roundIndex === 'number' && typeof parsed.mistakesInCurrentRound === 'number' && validRoundResults && validSelectedSentenceId && validStatus && typeof parsed.lastFeedback === 'string';
 }
 
@@ -65,6 +66,13 @@ function isResult(value: unknown): value is ResultState | null {
   return typeof parsed.score === 'number' && typeof parsed.clueRate === 'number' && typeof parsed.submissionCorrect === 'boolean';
 }
 
+// Maps caseId to the primary suspect ID for v5→v6 confrontationBySuspect migration.
+// Falls back to 'default' for unknown cases so old saves are never discarded.
+function getPrimaryTargetId(caseId: string): string {
+  if (caseId === 'case-001') return 'zhoulan';
+  return 'default';
+}
+
 // Each migration function is pure; it does NOT write back to localStorage.
 // loadStageSave is read-only; the upgraded save will be written back
 // via persistState() after app initialization.
@@ -84,6 +92,27 @@ function migrateSaveV4toV5(raw: Record<string, unknown>): Record<string, unknown
   return { ...raw, saveVersion: 5 };
 }
 
+function migrateSaveV5toV6(raw: Record<string, unknown>): Record<string, unknown> {
+  const caseId = typeof raw.caseId === 'string' ? raw.caseId : 'case-001';
+  const targetId = getPrimaryTargetId(caseId);
+  const oldConf = raw.confrontation && typeof raw.confrontation === 'object' ? (raw.confrontation as Record<string, unknown>) : {};
+
+  const inventory = Array.isArray(raw.inventory) ? (raw.inventory as Array<Record<string, unknown>>) : [];
+  const clueRuntimeStates: ClueRuntimeState[] = inventory.map((clue) => ({
+    clueId: typeof clue.id === 'string' ? clue.id : '',
+    discoverable: true,
+    currentLayer: 0,
+  }));
+
+  console.log(`[saveStore] migrateSaveV5toV6: caseId=${caseId}, primaryTarget=${targetId}, clues=${clueRuntimeStates.length}`);
+  return {
+    ...raw,
+    saveVersion: 6,
+    confrontationBySuspect: { [targetId]: oldConf },
+    clueRuntimeStates,
+  };
+}
+
 export function loadStageSave(caseId: string): StageSaveData | null {
   const key = getSaveKey(caseId);
   const raw = localStorage.getItem(key);
@@ -100,14 +129,16 @@ export function loadStageSave(caseId: string): StageSaveData | null {
     }
 
     let p: Partial<StageSaveData>;
-    if (version === 5) {
+    if (version === 6) {
       p = parsed as Partial<StageSaveData>;
+    } else if (version === 5) {
+      p = migrateSaveV5toV6(parsed) as Partial<StageSaveData>;
     } else if (version === 4) {
-      p = migrateSaveV4toV5(parsed) as Partial<StageSaveData>;
+      p = migrateSaveV5toV6(migrateSaveV4toV5(parsed)) as Partial<StageSaveData>;
     } else if (version === 3) {
-      p = migrateSaveV4toV5(migrateSaveV3toV4(parsed)) as Partial<StageSaveData>;
+      p = migrateSaveV5toV6(migrateSaveV4toV5(migrateSaveV3toV4(parsed))) as Partial<StageSaveData>;
     } else if (version === 2) {
-      p = migrateSaveV4toV5(migrateSaveV3toV4(migrateSaveV2toV3(parsed))) as Partial<StageSaveData>;
+      p = migrateSaveV5toV6(migrateSaveV4toV5(migrateSaveV3toV4(migrateSaveV2toV3(parsed)))) as Partial<StageSaveData>;
     } else {
       console.warn(`[saveStore] unsupported save version ${version}, discarding`);
       localStorage.removeItem(key);
