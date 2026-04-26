@@ -1097,14 +1097,6 @@ export class StageOneApp {
               <button class="primary-btn archive-enter-btn" data-screen="intro">${canContinue ? '继续导入' : '导入案件'}</button>
             </div>
           </article>
-          <article class="case-card case-card-side">
-            <div class="case-card-content">
-              <h3>评审室失页事件</h3>
-              <p class="case-tags">教学档案</p>
-              <p class="case-summary">快速体验调查流程与证据链收集方式。</p>
-              <button class="ghost-btn" data-screen="intro">教学进入</button>
-            </div>
-          </article>
           <article class="case-card case-card-side case-card-locked" aria-disabled="true">
             <div class="case-card-content">
               <h3>封存中</h3>
