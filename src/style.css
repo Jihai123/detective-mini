@@ -56,7 +56,7 @@ body {
 .archive-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
 .archive-header h1 { margin: 0; font-size: 38px; font-weight: 500; letter-spacing: 0.06em; }
 .archive-header p { margin: 0; color: #9cb0df; letter-spacing: 0.04em; }
-.archive-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 16px; }
+.archive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 .case-card {
   border: 1px solid rgba(170, 188, 236, 0.34);
   border-radius: 12px;
