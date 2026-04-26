@@ -165,12 +165,15 @@ export const case001Config: StageCaseConfig = {
   // T2.6: data-driven 结局文本(T2.6-B 接入 result 渲染,现阶段仅定义数据)
   endings: {
     success: {
-      title: '案件告破',
+      title: '案件归档',
       body: '你已锁定真相核心：周岚在会前拆封并转移结论页。',
     },
+    // TODO(T3): T2.5.1 renderResultBody 无条件分支,失败路径渲染与成功完全相同(历史 bug)。
+    // failure 此处显式复制 success 现状,确保 T2.6-B 接入后 case-001 玩家感知不变。
+    // T3 重做 result UI 时再分离成功/失败分支文案。
     failure: {
-      title: '归档待审',
-      body: '证据链尚不完整，案件暂时归档。重新排查并补全关键物证。',
+      title: '案件归档',
+      body: '你已锁定真相核心：周岚在会前拆封并转移结论页。',
     },
   },
   // T2.6: submissionCorrect 命中 → success,否则 fallback → failure
