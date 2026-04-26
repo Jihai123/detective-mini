@@ -14,13 +14,9 @@ export const case001Config: StageCaseConfig = {
   initialObjective: '第一轮调查：在 review_room 查明封套状态与门禁记录。',
   clues: [
     { id: 'clue-envelope-opened', title: '封套二次开启痕迹', description: '封签边缘有新拉扯痕迹，封套并非"一直密封"。', source: 'review_room / desk', isKey: true, image: '/assets/cases/case-001/clues/clue-envelope-opened.jpg', role: 'confrontation', interpretations: { canonical: { label: '封签拉扯痕迹是人为重新开启的直接证明，"封存后未再触碰"的说法不成立。', attacksTestimonyIds: ['r1-s2'] }, misread: { label: '封签边缘磨损可能是运输或存放中的正常损耗，不一定是人为破坏。', attacksTestimonyIds: [] } }, discoveryLayers: [{ layerId: 'layer-1', description: '封签边缘有新拉扯痕迹，封套并非"一直密封"。' }] },
-    // MOCK-TEST-1: doorlog requires envelope (Path-1 unlock trigger when envelope collected)
-    { id: 'clue-doorlog-0728', title: '07:28 门禁刷卡记录', description: '评审室门终端记录显示 07:28 有一次进入。', source: 'review_room / door_terminal', isKey: true, image: '/assets/cases/case-001/clues/clue-doorlog-0728.jpg', role: 'confrontation', interpretations: { canonical: { label: '07:28 的刷卡记录是周岚亲身进入评审室的硬证据，直接推翻她"未再返回"的口供。', attacksTestimonyIds: ['r2-s1'] }, misread: { label: '07:28 的进入记录是例行设备巡检，职责范围内的行为，不能证明接触了资料。', attacksTestimonyIds: [] } }, discoveryLayers: [{ layerId: 'layer-1', description: '评审室门终端记录显示 07:28 有一次进入。' }], unlockRequirement: { requiredClueIds: ['clue-envelope-opened'] } },
-    // MOCK-TEST-4: camera-gap has 2 layers (Path-4 deepen trigger)
-    { id: 'clue-camera-gap-0731', title: '07:31 监控短暂空档', description: '走廊监控在 07:31 附近存在几分钟数据缺口。', source: 'hallway_monitor / monitor_node', isKey: true, image: '/assets/cases/case-001/clues/clue-camera-gap-0731.jpg', role: 'confrontation', interpretations: { canonical: { label: '监控空窗精准落在 07:31，与周岚进入室内后的行动时段高度吻合，是关键视线盲区。', attacksTestimonyIds: [] }, misread: { label: '几分钟的数据缺口是监控设备偶发故障，与本案时间线不一定有关联。', attacksTestimonyIds: [] } }, discoveryLayers: [{ layerId: 'layer-1', description: '走廊监控在 07:31 附近存在几分钟数据缺口。' }, { layerId: 'layer-2', description: '【深入】空档时长精确 2 分 14 秒，与进出评审室时间窗口完全吻合。' }] },
+    { id: 'clue-doorlog-0728', title: '07:28 门禁刷卡记录', description: '评审室门终端记录显示 07:28 有一次进入。', source: 'review_room / door_terminal', isKey: true, image: '/assets/cases/case-001/clues/clue-doorlog-0728.jpg', role: 'confrontation', interpretations: { canonical: { label: '07:28 的刷卡记录是周岚亲身进入评审室的硬证据，直接推翻她"未再返回"的口供。', attacksTestimonyIds: ['r2-s1'] }, misread: { label: '07:28 的进入记录是例行设备巡检，职责范围内的行为，不能证明接触了资料。', attacksTestimonyIds: [] } }, discoveryLayers: [{ layerId: 'layer-1', description: '评审室门终端记录显示 07:28 有一次进入。' }] },
+    { id: 'clue-camera-gap-0731', title: '07:31 监控短暂空档', description: '走廊监控在 07:31 附近存在几分钟数据缺口。', source: 'hallway_monitor / monitor_node', isKey: true, image: '/assets/cases/case-001/clues/clue-camera-gap-0731.jpg', role: 'confrontation', interpretations: { canonical: { label: '监控空窗精准落在 07:31，与周岚进入室内后的行动时段高度吻合，是关键视线盲区。', attacksTestimonyIds: [] }, misread: { label: '几分钟的数据缺口是监控设备偶发故障，与本案时间线不一定有关联。', attacksTestimonyIds: [] } }, discoveryLayers: [{ layerId: 'layer-1', description: '走廊监控在 07:31 附近存在几分钟数据缺口。' }] },
     { id: 'clue-shred-label', title: '碎纸桶标签残片', description: '茶水间回收桶发现被撕碎的评审标签条。', source: 'pantry_bin / recycle_bin', isKey: true, image: '/assets/cases/case-001/clues/clue-shred-label.jpg', role: 'confrontation', interpretations: { canonical: { label: '评审专用标签出现在茶水间回收桶，说明有人将拆封后的封套标签撕碎并刻意丢弃于此。', attacksTestimonyIds: ['r3-s2'] }, misread: { label: '碎纸残片可能是多人操作中误投，单凭碎纸无法确认拆封行为的主体。', attacksTestimonyIds: [] } }, discoveryLayers: [{ layerId: 'layer-1', description: '茶水间回收桶发现被撕碎的评审标签条。' }] },
-    // MOCK-TEST-3: emotional clue (verifies role='emotional' type accepted by schema)
-    { id: 'clue-mock-emotional', title: '【模拟】周岚日记残页', description: '日记中出现对评审结果的激烈情绪描写。', source: 'mock-source', isKey: false, role: 'emotional' as const, interpretations: { canonical: { label: '情绪化文字表明周岚有动机阻碍发布。', attacksTestimonyIds: [] } } },
   ],
   testimonies: [
     { id: 'testimony-zhoulan-sealed', title: '周岚：资料已提前封存', content: '周岚称资料前一晚已封存，之后没再碰过。', sourceCharacterId: 'zhoulan' },
@@ -140,15 +136,6 @@ export const case001Config: StageCaseConfig = {
         onAllLost: '周岚保持沉默。她的每一条防线都没能被击穿——也许证据还没有收集齐全。',
         onSuccess: '第一层谎言已经拆穿。但她做这些事的真正动机，还藏在某个地方。',
       },
-      // MOCK-TEST-2: second suspect for switchSuspect Path-2/5 verification
-      {
-        suspectId: 'chenxu',
-        maxMistakesPerRound: 2,
-        rounds: [
-          { id: 'mock-r1', sentences: [{ id: 'mock-r1-s1', text: '我 08:05 到场一直在外面整理文件，没进评审室。', contradictable: false }], enterEmotion: 'neutral' as const, onCorrectEmotion: 'tense' as const, onCorrectFeedback: '（模拟正确）', onWrongFeedback: '（模拟错误）' },
-        ],
-        onSuccess: '（模拟）陈序证词核验完毕。',
-      },
     ],
   },
   timelineSlots: [
@@ -188,16 +175,10 @@ export const case001Config: StageCaseConfig = {
       title: '案件归档',
       body: '你已锁定真相核心：周岚在会前拆封并转移结论页。',
     },
-    // MOCK-TEST-3: extra ending key to test minScore branch
-    'perfect-score': { title: '【模拟】完美破案', body: '（模拟分支）所有证据锁定，逻辑无懈可击。' },
   },
   // T2.6: submissionCorrect 命中 → success,否则 fallback → failure
-  // MOCK-TEST-3: prepend minScore:90 rule to exercise both resolveEnding branches
   endingMatrix: {
-    rules: [
-      { when: { minScore: 90, submissionCorrect: true }, endingKey: 'perfect-score' },
-      { when: { submissionCorrect: true }, endingKey: 'success' },
-    ],
+    rules: [{ when: { submissionCorrect: true }, endingKey: 'success' }],
     fallback: 'failure',
   },
 };
