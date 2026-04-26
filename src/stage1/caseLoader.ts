@@ -30,7 +30,11 @@ export function validateCaseConfig(input: unknown): asserts input is StageCaseCo
   const c = input as Partial<StageCaseConfig>;
   if (!c.id || !c.title || !c.summary || !c.timeRange || !c.location) throw new Error('案件基础字段缺失');
   if (!Array.isArray(c.scenes) || !Array.isArray(c.clues) || !Array.isArray(c.characters) || !Array.isArray(c.dialogueNodes)) throw new Error(`${c.id}: 列表字段缺失`);
-  if (!c.confrontation || !Array.isArray(c.confrontation.rounds)) throw new Error(`${c.id}: confrontation 缺失`);
+  if (!c.confrontation) throw new Error(`${c.id}: confrontation 缺失`);
+  // 接受旧格式(rounds)或新格式(suspects),两者至少有其一
+  const hasLegacyRounds = Array.isArray(c.confrontation.rounds);
+  const hasMultiSuspect = Array.isArray(c.confrontation.suspects) && c.confrontation.suspects.length > 0;
+  if (!hasLegacyRounds && !hasMultiSuspect) throw new Error(`${c.id}: confrontation 需要 rounds(旧格式)或 suspects(新格式)之一`);
   if (!Array.isArray(c.timelineSlots) || !c.submission || !Array.isArray(c.truthReplay)) throw new Error(`${c.id}: 阶段6字段缺失`);
 
   c.scenes.forEach((scene) => {
@@ -40,7 +44,10 @@ export function validateCaseConfig(input: unknown): asserts input is StageCaseCo
   });
 
   c.dialogueNodes.forEach((node) => validateDialogueNode(node, c.id!));
-  c.confrontation.rounds.forEach((round) => {
+  const allRounds = hasMultiSuspect
+    ? c.confrontation.suspects!.flatMap((s) => s.rounds)
+    : (c.confrontation.rounds ?? []);
+  allRounds.forEach((round) => {
     if (!round.id || !Array.isArray(round.sentences) || round.sentences.length === 0) throw new Error(`${c.id}: confrontation round 字段缺失`);
   });
 }

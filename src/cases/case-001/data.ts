@@ -90,6 +90,53 @@ export const case001Config: StageCaseConfig = {
     ],
     onAllLost: '周岚保持沉默。她的每一条防线都没能被击穿——也许证据还没有收集齐全。',
     onSuccess: '第一层谎言已经拆穿。但她做这些事的真正动机，还藏在某个地方。',
+    // T2.6: 多嫌疑人结构(case-001 单嫌疑人,数据与旧字段镜像,T2.6-B 激活)
+    suspects: [
+      {
+        suspectId: 'zhoulan',
+        maxMistakesPerRound: 2,
+        rounds: [
+          {
+            id: 'round-1',
+            sentences: [
+              { id: 'r1-s1', text: '资料昨晚封存之后，我就没有任何理由再返回评审室。', contradictable: false },
+              { id: 'r1-s2', text: '那份封套从昨晚到今早，一直保持完好的密封状态，根本没人动过。', contradictable: true, counterEvidenceId: 'clue-envelope-opened' },
+            ],
+            enterEmotion: 'neutral',
+            onCorrectEmotion: 'defensive',
+            onCorrectFeedback: '……封条边缘有痕迹？那也不能说明什么。',
+            onWrongFeedback: '这条证据跟我的说法没关系，别东拉西扯。',
+            onRoundLost: '你连这点都拿不出证据？那就别再浪费时间了。',
+          },
+          {
+            id: 'round-2',
+            sentences: [
+              { id: 'r2-s1', text: '07:28 那会儿，我在走廊等候区，根本没有进入过评审室。', contradictable: true, counterEvidenceId: 'clue-doorlog-0728' },
+              { id: 'r2-s2', text: '我的门禁权限在那个时间段根本没有激活记录。', contradictable: false },
+            ],
+            enterEmotion: 'defensive',
+            onCorrectEmotion: 'defensive',
+            onCorrectFeedback: '……陈序？他什么时候路过的，他看清是谁了吗？',
+            onWrongFeedback: '门禁记录那种东西证明不了什么，你再找找别的吧。',
+            onRoundLost: '你们查不出来的。我该说的都说过了。',
+          },
+          {
+            id: 'round-3',
+            sentences: [
+              { id: 'r3-s1', text: '进评审室检查设备是职责所在，但整个过程我没有接触任何资料页面。', contradictable: false },
+              { id: 'r3-s2', text: '那些评审标签条一直完整贴在封套上，我从来没有撕过任何东西。', contradictable: true, counterEvidenceId: 'clue-shred-label' },
+            ],
+            enterEmotion: 'defensive',
+            onCorrectEmotion: 'collapse',
+            onCorrectFeedback: '……那张标签，怎么会在茶水间……\n\n是又怎样。反正，你们想要的答案我都给了。',
+            onWrongFeedback: '这种东西能证明什么？别再纠缠。',
+            onRoundLost: '就这样吧。我配合了，你们也查过了，还想怎么样？',
+          },
+        ],
+        onAllLost: '周岚保持沉默。她的每一条防线都没能被击穿——也许证据还没有收集齐全。',
+        onSuccess: '第一层谎言已经拆穿。但她做这些事的真正动机，还藏在某个地方。',
+      },
+    ],
   },
   timelineSlots: [
     { id: 't-0720', label: '07:20 资料送达 / 周岚负责封装', expectedClueId: 'clue-envelope-opened' },
@@ -115,4 +162,23 @@ export const case001Config: StageCaseConfig = {
     { id: 'rp-3', title: '转移', summary: '结论页被抽离并处理，残片最终进入回收桶。', timeAnchor: '07:31-08:00', evidenceIds: ['clue-shred-label'] },
     { id: 'rp-4', title: '掩饰与拖延', summary: '监控空窗与口径反复用于拖延核验，直至 08:17 后被连续证据压实。', timeAnchor: '07:31-08:22', evidenceIds: ['clue-camera-gap-0731', 'testimony-chenxu-noentry'] },
   ],
+  // T2.6: data-driven 结局文本(T2.6-B 接入 result 渲染,现阶段仅定义数据)
+  // TODO(T3): T2.5.1 renderResultBody 无条件分支,success/failure 渲染文本逐字相同(历史 bug)。
+  // case-001 此处刻意让两个 key 保持一致,确保 T2.6-B 接入后玩家感知不变。
+  // T3 重做 result UI 时再分离成功/失败分支文案。
+  endings: {
+    success: {
+      title: '案件归档',
+      body: '你已锁定真相核心：周岚在会前拆封并转移结论页。',
+    },
+    failure: {
+      title: '案件归档',
+      body: '你已锁定真相核心：周岚在会前拆封并转移结论页。',
+    },
+  },
+  // T2.6: submissionCorrect 命中 → success,否则 fallback → failure
+  endingMatrix: {
+    rules: [{ when: { submissionCorrect: true }, endingKey: 'success' }],
+    fallback: 'failure',
+  },
 };

@@ -76,8 +76,8 @@ export interface ClueInterpretations {
   misread?: ClueInterpretation;
 }
 
-// T2 激活
-export type ClueRole = 'confrontation' | 'emotional' | 'both';
+// T2 激活 / T2.6 扩展: 'both' 替换为 'context'(背景证据,不参与对质也不影响结局)
+export type ClueRole = 'confrontation' | 'emotional' | 'context';
 
 // T5 预留
 export interface ClueDiscoveryLayer {
@@ -126,11 +126,19 @@ export type TestimonyConfig = {
   sourceCharacterId: string;
 };
 
+// T2.6: 三档对质反应文本(未填则运行时使用全局默认兜底)
+export type TestimonySentenceResponses = {
+  partial?: string;
+  misread?: string;
+  irrelevant?: string;
+};
+
 export type TestimonySentence = {
   id: string;
   text: string;
   contradictable: boolean;
   counterEvidenceId?: string;
+  responses?: TestimonySentenceResponses;
 };
 
 export type ConfrontationRound = {
@@ -143,12 +151,23 @@ export type ConfrontationRound = {
   onRoundLost?: string;
 };
 
+// T2.6: 每个嫌疑人独立的对质数据(平行切换,互不干扰)
+export type SuspectConfig = {
+  suspectId: string;
+  maxMistakesPerRound: number;
+  rounds: ConfrontationRound[];
+  onAllLost?: string;
+  onSuccess: string;
+};
+
 export type ConfrontationConfig = {
   target: string;
   maxMistakesPerRound: number;
   rounds: ConfrontationRound[];
   onAllLost?: string;
   onSuccess: string;
+  // T2.6: 多嫌疑人结构,T2.6-B 激活; T2.6-A 期间与旧字段并存
+  suspects?: SuspectConfig[];
 };
 
 export type TimelineSlot = {
@@ -178,6 +197,34 @@ export type TruthReplaySegment = {
   evidenceIds: string[];
 };
 
+// T2.6: 结局文本块
+export type EndingTextBlock = {
+  title: string;
+  body: string;
+};
+
+// T2.6: endingMatrix 规则条目 — 满足 when 条件则命中对应 endingKey
+export type EndingMatrixRule = {
+  when: {
+    minScore?: number;
+    submissionCorrect?: boolean;
+  };
+  endingKey: string;
+};
+
+// T2.6: data-driven 结局矩阵,规则顺序命中,无命中则用 fallback
+export type EndingMatrix = {
+  rules: EndingMatrixRule[];
+  fallback: string;
+};
+
+// T2.6: 线索发现/解锁 runtime 状态(discoverable 由 unlock 重算驱动,T2.6-B 激活)
+export type ClueRuntimeState = {
+  clueId: string;
+  discoverable: boolean;
+  currentLayer: number;
+};
+
 export type SceneConfig = {
   id: string;
   label: string;
@@ -204,6 +251,9 @@ export type StageCaseConfig = {
   timelineSlots: TimelineSlot[];
   submission: SubmissionConfig;
   truthReplay: TruthReplaySegment[];
+  // T2.6: data-driven 结局文本与矩阵(T2.6-B 接入 result 渲染)
+  endings?: Record<string, EndingTextBlock>;
+  endingMatrix?: EndingMatrix;
 };
 
 export type InventoryClue = ClueConfig & { discoveredAt: number };
@@ -223,10 +273,12 @@ export type DialogueState = {
 export type ConfrontationState = {
   roundIndex: number;
   mistakesInCurrentRound: number;
-  roundResults: Array<'pending' | 'won' | 'lost'>;
+  // T2.6: 新增 'draw'(misread 命中时可产生平局,T2.6-B 激活)
+  roundResults: Array<'pending' | 'won' | 'lost' | 'draw'>;
   selectedSentenceId: string | null;
   status: 'idle' | 'ongoing' | 'success' | 'allLost';
   lastFeedback: string;
+  lostByMisread?: boolean;
 };
 
 export type TimelineState = {
@@ -302,6 +354,10 @@ export type StageSaveData = {
   lastDiscoveryAt: number;
   // T2 激活
   interpretations: InterpretationState;
+  // T2.6: 多嫌疑人对质状态字典 { suspectId: ConfrontationState }(T2.6-B 激活,T2.6-A 仅写入 migration)
+  confrontationBySuspect?: Record<string, ConfrontationState>;
+  // T2.6: 每条线索的发现/layer runtime 状态(T2.6-B 激活)
+  clueRuntimeStates?: ClueRuntimeState[];
 };
 
 export type StandardEventName =
