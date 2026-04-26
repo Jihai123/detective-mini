@@ -382,3 +382,47 @@ button { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px;
 .evidence-grid button.is-selected { border-color: #ffb067; background: rgba(255,176,103,.18); box-shadow: 0 0 0 2px rgba(255,176,103,.35); color: #ffeaca; }
 .submission-group button.is-selected { border-color: #ffb067; background: rgba(255,176,103,.18); box-shadow: 0 0 0 2px rgba(255,176,103,.35); color: #ffeaca; }
 .submission-group button:hover:not(:disabled):not(.is-selected), .evidence-grid button:hover:not(:disabled):not(.is-selected) { background: rgba(255,176,103,.08); border-color: rgba(255,176,103,.5); cursor: pointer; }
+
+/* ── T2.6-B: round badge draw state ───────────────────────────────────── */
+.round-badge.is-draw { background: rgba(255,210,80,.12); border-color: rgba(255,210,80,.45); color: #ffe080; }
+
+/* ── T2.6-B: suspect tabs in confrontation header ─────────────────────── */
+.suspect-tabs { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.suspect-tab { padding: 5px 12px; border: 1px solid rgba(255,168,100,.35); border-radius: 999px; background: rgba(60,30,12,.45); color: #ffd8b0; font-size: 13px; cursor: pointer; transition: background .15s, border-color .15s; }
+.suspect-tab:hover { background: rgba(90,50,20,.6); border-color: rgba(255,168,100,.6); }
+.suspect-tab.is-active { background: rgba(255,140,60,.2); border-color: rgba(255,160,90,.8); color: #ffe8cc; box-shadow: 0 0 0 2px rgba(255,160,90,.3); }
+
+/* ── T2.6-B: 准备指认 button row ──────────────────────────────────────── */
+.accuse-row { margin-top: 18px; display: flex; justify-content: flex-end; }
+.accuse-btn { padding: 10px 22px; border: 1px solid rgba(255,140,60,.4); border-radius: 10px; background: rgba(60,30,10,.5); color: #ffd0a8; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s, box-shadow .15s; }
+.accuse-btn:disabled { opacity: .38; cursor: not-allowed; }
+.accuse-btn.is-ready { border-color: rgba(255,170,80,.85); color: #ffebd2; animation: accuse-pulse 2.2s ease-in-out infinite; }
+@keyframes accuse-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,160,70,.0); }
+  50% { box-shadow: 0 0 0 8px rgba(255,160,70,.18); }
+}
+
+/* ── T2.6-B: success notice in confrontation ──────────────────────────── */
+.confront-success-notice { margin: 6px 0 10px; padding: 8px 12px; border-left: 3px solid rgba(255,200,80,.7); background: rgba(255,200,80,.07); color: #ffe8a3; font-size: 14px; border-radius: 0 6px 6px 0; }
+
+/* ── T2.6-B: accuse dialog overlay ──────────────────────────────────────*/
+.accuse-dialog-overlay { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(2,5,14,.62); backdrop-filter: blur(6px); border-radius: 14px; }
+.accuse-dialog { width: min(480px, 90%); border: 1px solid rgba(255,168,100,.52); border-radius: 12px; background: linear-gradient(140deg, rgba(22,14,6,.96), rgba(12,8,2,.98)); padding: 24px; display: grid; gap: 14px; text-align: center; }
+.accuse-dialog h3 { margin: 0; font-size: 26px; color: #ffe8cc; }
+.accuse-dialog p { margin: 0; color: #d4b898; }
+.accuse-suspects { display: flex; flex-direction: column; gap: 8px; }
+.accuse-suspect-btn { font-size: 17px; padding: 12px 20px; }
+
+/* ── T2.6-B: clue evidence row wrapper (card + deepen btn) ────────────── */
+.clue-evidence-row { display: flex; align-items: center; gap: 6px; }
+.clue-evidence-row .clue-evidence-card { flex: 1; min-width: 0; }
+.clue-deepen-btn { flex-shrink: 0; padding: 6px 10px; font-size: 12px; border: 1px solid rgba(130,165,255,.4); border-radius: 8px; background: rgba(20,32,68,.7); color: #b0c4ff; cursor: pointer; white-space: nowrap; transition: background .12s; }
+.clue-deepen-btn:hover { background: rgba(40,60,110,.8); border-color: rgba(130,165,255,.7); }
+
+/* ── T2.6-B: layer progress badge ────────────────────────────────────── */
+.layer-progress { flex-shrink: 0; font-size: 10px; padding: 2px 6px; border-radius: 999px; background: rgba(80,120,200,.22); color: #a8c0f0; border: 1px solid rgba(80,120,200,.38); letter-spacing: .04em; margin-right: 4px; }
+
+/* ── T2.6-B: locked clue card ────────────────────────────────────────── */
+.clue-locked-card { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px dashed rgba(100,120,160,.3); border-radius: 8px; background: rgba(10,14,28,.5); color: #5c6a88; font-size: 13px; opacity: .72; }
+.clue-lock-icon { width: 14px; height: 14px; flex-shrink: 0; border: 1.5px solid rgba(100,120,160,.5); border-radius: 4px; background: rgba(60,80,120,.25); display: inline-block; position: relative; }
+.clue-lock-icon::before { content: ''; position: absolute; top: -5px; left: 2px; width: 8px; height: 6px; border: 1.5px solid rgba(100,120,160,.5); border-bottom: none; border-radius: 4px 4px 0 0; }

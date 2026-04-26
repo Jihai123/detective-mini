@@ -4,6 +4,9 @@ import type {
   CharacterConfig,
   ClueConfig,
   ClueInterpretationChoice,
+  ClueRuntimeState,
+  ConfrontationRound,
+  ConfrontationState,
   ConditionExpr,
   ConditionResult,
   DialogueEffect,
@@ -14,16 +17,25 @@ import type {
   InventoryTestimony,
   ResultState,
   Screen,
+  StageCaseConfig,
   StageRuntimeState,
   StandardEvent,
   SubmissionState,
   TestimonyConfig,
+  TestimonySentence,
   TimelineSlot,
 } from './types';
 
 const SCREEN_SEQUENCE: Screen[] = ['archive', 'intro', 'investigation'];
 const ENGINE_EVENT_NAME = 'DETECTIVE_ENGINE_EVENT';
 const DEV_MODE = window.location.search.includes('dev=1');
+
+// T2.6-B: fallback feedback strings when sentence.responses and round-level text are absent
+const FEEDBACK_DEFAULTS = {
+  irrelevant: '这条证据暂时无法推进——换个角度试试。',
+  partial: '这个角度有些道理，但还不足以击穿这句话。',
+  misread: '你的解读方向偏了——这条证据的意义另有所指。',
+} as const;
 
 const AMBIENCE_TRACKS: Record<string, string> = {
   review_room: '/assets/cases/case-001/audio/room_loop.mp3',
@@ -47,6 +59,9 @@ export class StageOneApp {
   private interpretingClueId: string | null = null;
 
   private pendingInterpretTier: 'canonical' | 'partial' | 'misread' | null = null;
+
+  // T2.6-B: controls accuse-suspect dialog visibility
+  private accuseDialogOpen = false;
 
   private primaryNotice = '';
 
@@ -97,6 +112,10 @@ export class StageOneApp {
       lastDiscoveryAt: existingSave?.lastDiscoveryAt ?? Date.now(),
       eventFeed: [],
       interpretations: existingSave?.interpretations ?? [],
+      // T2.6-B: runtime fields restored from save or initialised fresh
+      confrontationBySuspect: existingSave?.confrontationBySuspect ?? {},
+      currentSuspectId: existingSave?.currentSuspectId ?? null,
+      clueRuntimeStates: existingSave?.clueRuntimeStates ?? [],
     };
 
     this.events.addEventListener(ENGINE_EVENT_NAME, (evt) => {
@@ -107,6 +126,7 @@ export class StageOneApp {
 
     this.preloadCriticalAssets().finally(() => {
       this.loading = false;
+      this.initClueRuntimeStates(); // T2.6-B: supplement save entries with all case clues
       this.persistState();
       this.render();
       this.preloadDeferredAssets();
@@ -251,6 +271,10 @@ export class StageOneApp {
       wrongSubmissionCount: this.state.wrongSubmissionCount,
       lastDiscoveryAt: this.state.lastDiscoveryAt,
       interpretations: this.state.interpretations,
+      // T2.6-B
+      confrontationBySuspect: this.state.confrontationBySuspect,
+      currentSuspectId: this.state.currentSuspectId,
+      clueRuntimeStates: this.state.clueRuntimeStates,
     });
   }
 
@@ -305,6 +329,13 @@ export class StageOneApp {
       const discovered: InventoryClue = { ...clue, discoveredAt: Date.now() };
       this.state.inventory = [discovered, ...this.state.inventory];
       this.state.lastDiscoveryAt = Date.now();
+      // Ensure a clueRuntimeState entry exists for the newly collected clue
+      if (!this.state.clueRuntimeStates.some((rs) => rs.clueId === clue.id)) {
+        this.state.clueRuntimeStates = [...this.state.clueRuntimeStates, { clueId: clue.id, discoverable: true, currentLayer: 0 }];
+      }
+      // Recompute unlock gates for all locked clues now that inventory changed
+      const caseConfig = loadCaseConfig(this.state.caseId);
+      this.recomputeUnlockStates(caseConfig);
       this.emitEvent({ type: 'CLUE_DISCOVERED', timestamp: Date.now(), payload: { clueId: discovered.id } });
     }
   }
@@ -403,43 +434,36 @@ export class StageOneApp {
     }
 
     const caseConfig = loadCaseConfig(this.state.caseId);
-    const holdings = new Set<string>([
-      ...this.state.inventory.map((i) => i.id),
-      ...this.state.testimonies.map((t) => t.id),
-    ]);
+    const suspects = caseConfig.confrontation.suspects;
+    const allSuspectIds = suspects?.length ? suspects.map((s) => s.suspectId) : [caseConfig.confrontation.target];
+    const firstId = allSuspectIds[0];
 
-    // TODO(T3): preResults 用 counterEvidenceId 是 T1 遗留双轨判定。
-    // Bug 1 修复后(canEnterConfrontation 要求 key clue 全部收集且已解读),
-    // preResults 永远 ['pending', ...],此计算是死代码。T3 deduction 重做时一并清理。
-    const preResults: Array<'pending' | 'lost'> = caseConfig.confrontation.rounds.map((round) => {
-      const contradictableSentence = round.sentences.find((s) => s.contradictable);
-      const requiredId = contradictableSentence?.counterEvidenceId;
-      if (!requiredId) return 'pending';
-      return holdings.has(requiredId) ? 'pending' : 'lost';
-    });
+    // Build / repair confrontationBySuspect: create fresh entries for allLost suspects,
+    // leave ongoing/success suspects untouched (player can resume).
+    const dict: Record<string, ConfrontationState> = { ...this.state.confrontationBySuspect };
+    for (const sid of allSuspectIds) {
+      const existing = dict[sid];
+      if (!existing || existing.status === 'allLost') {
+        const sc = suspects?.find((s) => s.suspectId === sid);
+        const rounds = sc?.rounds ?? caseConfig.confrontation.rounds;
+        dict[sid] = { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: rounds.map(() => 'pending' as const), selectedSentenceId: null, status: 'ongoing', lastFeedback: '审视证人的每一句话。找出自相矛盾的那一句。' };
+      }
+    }
 
+    this.state.confrontationBySuspect = dict;
+    this.state.currentSuspectId = firstId;
+    this.state.confrontation = { ...dict[firstId] };
     this.state.screen = 'confrontation';
-    this.state.confrontation = {
-      roundIndex: 0,
-      mistakesInCurrentRound: 0,
-      roundResults: preResults,
-      selectedSentenceId: null,
-      status: 'ongoing',
-      lastFeedback: '审视周岚的每一句话。找出自相矛盾的那一句。',
-    };
-
-    this.advanceToNextPlayableRound();
-
     this.persistState();
     this.render();
   }
 
   private advanceToNextPlayableRound(): void {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    const conf = caseConfig.confrontation;
+    const rounds = this.getRoundsForCurrentSuspect(caseConfig);
 
     while (
-      this.state.confrontation.roundIndex < conf.rounds.length &&
+      this.state.confrontation.roundIndex < rounds.length &&
       this.state.confrontation.roundResults[this.state.confrontation.roundIndex] === 'lost'
     ) {
       this.state.confrontation.roundIndex++;
@@ -447,14 +471,15 @@ export class StageOneApp {
       this.state.confrontation.selectedSentenceId = null;
     }
 
-    if (this.state.confrontation.roundIndex >= conf.rounds.length) {
+    if (this.state.confrontation.roundIndex >= rounds.length) {
       this.handleConfrontationEnd();
     }
   }
 
   private selectSentence(sentenceId: string): void {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    const round = caseConfig.confrontation.rounds[this.state.confrontation.roundIndex];
+    const rounds = this.getRoundsForCurrentSuspect(caseConfig);
+    const round = rounds[this.state.confrontation.roundIndex];
     if (!round || this.state.confrontation.status !== 'ongoing') return;
     const sentence = round.sentences.find((s) => s.id === sentenceId);
     if (!sentence) return;
@@ -467,10 +492,12 @@ export class StageOneApp {
     this.render();
   }
 
+  // T2.6-B: 4-outcome attack dispatch.
+  // canonical→won | partial→draw | misread→lost+lostByMisread | irrelevant→no effect
   private presentEvidence(evidenceId: string): void {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    const conf = caseConfig.confrontation;
-    const round = conf.rounds[this.state.confrontation.roundIndex];
+    const rounds = this.getRoundsForCurrentSuspect(caseConfig);
+    const round = rounds[this.state.confrontation.roundIndex];
     if (!round || this.state.confrontation.status !== 'ongoing') return;
 
     const selectedId = this.state.confrontation.selectedSentenceId;
@@ -487,77 +514,66 @@ export class StageOneApp {
       return;
     }
 
-    const clueDef = caseConfig.clues.find((c) => c.id === evidenceId);
-    let isHit: boolean;
-    if (clueDef) {
-      const interp = this.getInterpretationForClue(evidenceId);
-      const tierData = interp ? clueDef.interpretations[interp.selectedTier] : null;
-      isHit = tierData?.attacksTestimonyIds.includes(selectedId) ?? false;
-    } else {
-      isHit = evidenceId === sentence.counterEvidenceId;
+    const outcome = this.resolveOutcome(evidenceId, selectedId, caseConfig);
+    const feedback = this.getFeedback(round, sentence, outcome);
+    console.log(`[T2.6-B] presentEvidence: evidence=${evidenceId} sentence=${selectedId} outcome=${outcome}`);
+
+    if (outcome === 'irrelevant') {
+      // No round change, no mistake consumed
+      this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: null, lastFeedback: feedback };
+      this.syncSuspectState();
+      this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { outcome, round: `${this.state.confrontation.roundIndex}` } });
+      this.persistState();
+      this.render();
+      return;
     }
 
-    if (isHit) {
-      const newResults = [...this.state.confrontation.roundResults];
+    const newResults = [...this.state.confrontation.roundResults];
+    if (outcome === 'canonical') {
       newResults[this.state.confrontation.roundIndex] = 'won';
-      this.state.confrontation = {
-        ...this.state.confrontation,
-        roundIndex: this.state.confrontation.roundIndex + 1,
-        mistakesInCurrentRound: 0,
-        roundResults: newResults,
-        selectedSentenceId: null,
-        lastFeedback: round.onCorrectFeedback,
-      };
-      this.advanceToNextPlayableRound();
+    } else if (outcome === 'partial') {
+      newResults[this.state.confrontation.roundIndex] = 'draw';
     } else {
-      // TODO(T2 后续): misread 解读应有差异化失败反应,
-      // 现暂复用 canonical 选错时机的失败流程。case-002 三档时再分叉。
-      const mistakesInCurrentRound = this.state.confrontation.mistakesInCurrentRound + 1;
-      if (mistakesInCurrentRound > conf.maxMistakesPerRound) {
-        const newResults = [...this.state.confrontation.roundResults];
-        newResults[this.state.confrontation.roundIndex] = 'lost';
-        this.state.confrontation = {
-          ...this.state.confrontation,
-          roundIndex: this.state.confrontation.roundIndex + 1,
-          mistakesInCurrentRound: 0,
-          roundResults: newResults,
-          selectedSentenceId: null,
-          lastFeedback: round.onRoundLost ?? round.onWrongFeedback,
-        };
-        this.advanceToNextPlayableRound();
-      } else {
-        this.state.confrontation = {
-          ...this.state.confrontation,
-          mistakesInCurrentRound,
-          selectedSentenceId: null,
-          lastFeedback: round.onWrongFeedback,
-        };
-      }
+      // misread
+      newResults[this.state.confrontation.roundIndex] = 'lost';
     }
 
-    this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { round: `${this.state.confrontation.roundIndex}` } });
+    this.state.confrontation = {
+      ...this.state.confrontation,
+      roundIndex: this.state.confrontation.roundIndex + 1,
+      mistakesInCurrentRound: 0,
+      roundResults: newResults,
+      selectedSentenceId: null,
+      lastFeedback: feedback,
+      lostByMisread: outcome === 'misread' ? true : undefined,
+    };
+    this.advanceToNextPlayableRound();
+    this.syncSuspectState();
+    this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { outcome, round: `${this.state.confrontation.roundIndex}` } });
     this.persistState();
     this.render();
   }
 
+  // D1: success → status='success' only, no auto-transition to deduction.
+  // D2: hasMajorityWin = wonCount >= 1 && (wonCount + drawCount) > lostCount
   private handleConfrontationEnd(): void {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    const conf = caseConfig.confrontation;
+    const suspectConf = this.getConfForCurrentSuspect(caseConfig);
+    const rounds = this.getRoundsForCurrentSuspect(caseConfig);
     const roundResults = this.state.confrontation.roundResults;
-    const lastRoundIndex = conf.rounds.length - 1;
     const wonCount = roundResults.filter((r) => r === 'won').length;
+    const drawCount = roundResults.filter((r) => r === 'draw').length;
     const lostCount = roundResults.filter((r) => r === 'lost').length;
-    const hasMajorityWin = wonCount > lostCount;
+    const hasMajorityWin = wonCount >= 1 && (wonCount + drawCount) > lostCount;
+    console.log(`[T2.6-B] handleConfrontationEnd: suspect=${this.state.currentSuspectId} won=${wonCount} draw=${drawCount} lost=${lostCount} hasMajorityWin=${hasMajorityWin}`);
 
     if (!hasMajorityWin) {
       this.state.confrontation = {
-        roundIndex: 0,
-        mistakesInCurrentRound: 0,
-        roundResults: [],
-        selectedSentenceId: null,
-        status: 'idle',
-        lastFeedback: conf.onAllLost ?? '对质未能充分击穿证人的防线——或许证据还没有收集齐全。',
+        ...this.state.confrontation,
+        status: 'allLost',
+        lastFeedback: suspectConf.onAllLost ?? '对质未能充分击穿证人的防线——或许证据还没有收集齐全。',
       };
+      this.syncSuspectState();
       this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
       this.state.hintCount += 1;
       this.primaryNotice = '关键对质未能推进：回到调查区补齐证据。';
@@ -566,23 +582,19 @@ export class StageOneApp {
       return;
     }
 
+    // D1: set success, no auto-jump; player uses "准备指认" button
     const hasLost = roundResults.some((r) => r === 'lost');
-    const lastRound = conf.rounds[lastRoundIndex];
-    const lastRoundWon = roundResults[lastRoundIndex] === 'won';
-
+    const lastRound = rounds[rounds.length - 1];
+    const lastRoundWon = roundResults[rounds.length - 1] === 'won';
     const finalFeedback = hasLost
-      ? '你击穿了她最核心的谎言，但有些细节没能拿下。或许那些没被揭穿的部分，正藏着更多东西。'
-      : (lastRoundWon ? `${lastRound.onCorrectFeedback}\n\n${conf.onSuccess}` : conf.onSuccess);
+      ? '你击穿了她最核心的谎言，但有些细节没能拿下。'
+      : (lastRoundWon ? `${lastRound.onCorrectFeedback}\n\n${suspectConf.onSuccess}` : suspectConf.onSuccess);
 
-    this.state.confrontation = {
-      ...this.state.confrontation,
-      roundIndex: lastRoundIndex,
-      status: 'success',
-      lastFeedback: finalFeedback,
-    };
+    this.state.confrontation = { ...this.state.confrontation, status: 'success', lastFeedback: finalFeedback };
+    this.syncSuspectState();
     this.state.flags = { ...this.state.flags, 'confrontation-complete': true };
-    this.state.objective = '对质完成，进入时间验证并提交结案归纳。';
-    this.state.screen = 'deduction';
+    this.state.objective = '对质成功——点击"准备指认"选择嫌疑人并进入结案阶段。';
+    this.primaryNotice = '证据似乎已经足够，你可以指认凶手了。';
   }
 
   private selectTimelineClue(clueId: string): void {
@@ -642,12 +654,28 @@ export class StageOneApp {
     };
   }
 
+  // T2.6-B: evaluates endingMatrix rules in order, returns first matching endingKey.
+  private resolveEnding(result: ResultState): string {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const matrix = caseConfig.endingMatrix;
+    if (!matrix) return 'default';
+    for (const rule of matrix.rules) {
+      if (rule.when.minScore !== undefined && result.score < rule.when.minScore) continue;
+      if (rule.when.submissionCorrect !== undefined && result.submissionCorrect !== rule.when.submissionCorrect) continue;
+      return rule.endingKey;
+    }
+    return matrix.fallback;
+  }
+
   private submitCaseConclusion(): void {
     const result = this.computeResult();
+    const endingKey = this.resolveEnding(result);
+    // Path-3 mental-sim console output
+    console.log(`[T2.6-B] resolveEnding: score=${result.score} submissionCorrect=${result.submissionCorrect} → endingKey=${endingKey}`);
     if (!result.submissionCorrect) {
       this.state.wrongSubmissionCount += 1;
       if (this.state.wrongSubmissionCount >= 2) {
-        this.primaryNotice = '提交偏差较多：优先核对“关键谎言”和“结论页去向”两项。';
+        this.primaryNotice = '提交偏差较多：优先核对”关键谎言”和”结论页去向”两项。';
         this.state.hintCount += 1;
       }
     }
@@ -712,6 +740,174 @@ export class StageOneApp {
       ...(clue.interpretations.misread ? [{ tier: 'misread' as const, label: clue.interpretations.misread.label }] : []),
     ];
     return this.clueIdHash(clue.id) % 2 === 1 ? [...all].reverse() : all;
+  }
+
+  // ── T2.6-B unlock / layer runtime ─────────────────────────────────────
+
+  // Called once at startup (after state is populated from save).
+  // Supplements saved clueRuntimeStates (which only cover collected clues from
+  // migration) with entries for ALL case clues.  Entries already present are
+  // left unchanged so existing layer progress is never reset.
+  private initClueRuntimeStates(): void {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const existing = new Map(this.state.clueRuntimeStates.map((rs) => [rs.clueId, rs]));
+    for (const clue of caseConfig.clues) {
+      if (existing.has(clue.id)) continue;
+      let discoverable = true;
+      const req = clue.unlockRequirement;
+      if (req) {
+        if (req.requiredClueIds?.length) {
+          discoverable = req.requiredClueIds.every((id) => this.state.inventory.some((i) => i.id === id));
+        }
+        if (discoverable && req.requiredInterpretations?.length) {
+          discoverable = req.requiredInterpretations.every((r) =>
+            this.state.interpretations.some((i) => i.clueId === r.clueId && i.selectedTier === r.tier)
+          );
+        }
+      }
+      existing.set(clue.id, { clueId: clue.id, discoverable, currentLayer: 0 });
+    }
+    this.state.clueRuntimeStates = Array.from(existing.values());
+  }
+
+  // Scans all locked clues and promotes discoverable=true if their
+  // unlockRequirement is now satisfied.  Called after every clue collection.
+  private recomputeUnlockStates(caseConfig: StageCaseConfig): void {
+    let changed = false;
+    this.state.clueRuntimeStates = this.state.clueRuntimeStates.map((rs): ClueRuntimeState => {
+      if (rs.discoverable) return rs;
+      const clue = caseConfig.clues.find((c) => c.id === rs.clueId);
+      if (!clue?.unlockRequirement) return rs;
+      const req = clue.unlockRequirement;
+      let now = true;
+      if (req.requiredClueIds?.length) {
+        now = req.requiredClueIds.every((id) => this.state.inventory.some((i) => i.id === id));
+      }
+      if (now && req.requiredInterpretations?.length) {
+        now = req.requiredInterpretations.every((r) =>
+          this.state.interpretations.some((i) => i.clueId === r.clueId && i.selectedTier === r.tier)
+        );
+      }
+      if (now) {
+        // Path-1 mental-sim console output
+        console.log(`[T2.6-B] unlock recompute: clueId=${rs.clueId} discoverable: false→true`);
+        changed = true;
+        return { ...rs, discoverable: true };
+      }
+      return rs;
+    });
+    if (changed) this.persistState();
+  }
+
+  // Advances a collected clue's discoveryLayer by 1 (up to max).
+  private advanceLayer(clueId: string): void {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const clueDef = caseConfig.clues.find((c) => c.id === clueId);
+    if (!clueDef?.discoveryLayers?.length) return;
+    const maxLayer = clueDef.discoveryLayers.length - 1;
+    this.state.clueRuntimeStates = this.state.clueRuntimeStates.map((rs) => {
+      if (rs.clueId !== clueId || rs.currentLayer >= maxLayer) return rs;
+      console.log(`[T2.6-B] advanceLayer: clueId=${clueId} layer ${rs.currentLayer}→${rs.currentLayer + 1}`);
+      return { ...rs, currentLayer: rs.currentLayer + 1 };
+    });
+    this.persistState();
+    this.render();
+  }
+
+  // ── T2.6-B multi-suspect confrontation helpers ────────────────────────
+
+  // Returns the rounds array for the current suspect; falls back to legacy rounds.
+  private getRoundsForCurrentSuspect(caseConfig: StageCaseConfig): ConfrontationRound[] {
+    const sid = this.state.currentSuspectId;
+    if (sid && caseConfig.confrontation.suspects?.length) {
+      const s = caseConfig.confrontation.suspects.find((x) => x.suspectId === sid);
+      if (s) return s.rounds;
+    }
+    return caseConfig.confrontation.rounds;
+  }
+
+  private getConfForCurrentSuspect(caseConfig: StageCaseConfig): { maxMistakesPerRound: number; onAllLost?: string; onSuccess: string } {
+    const sid = this.state.currentSuspectId;
+    if (sid && caseConfig.confrontation.suspects?.length) {
+      const s = caseConfig.confrontation.suspects.find((x) => x.suspectId === sid);
+      if (s) return s;
+    }
+    return caseConfig.confrontation;
+  }
+
+  // Writes flat confrontation state back into confrontationBySuspect dict.
+  private syncSuspectState(): void {
+    if (!this.state.currentSuspectId) return;
+    this.state.confrontationBySuspect = {
+      ...this.state.confrontationBySuspect,
+      [this.state.currentSuspectId]: { ...this.state.confrontation },
+    };
+  }
+
+  // outcome ∈ {canonical, partial, misread, irrelevant}
+  private resolveOutcome(evidenceId: string, sentenceId: string, caseConfig: StageCaseConfig): 'canonical' | 'partial' | 'misread' | 'irrelevant' {
+    const clue = caseConfig.clues.find((c) => c.id === evidenceId);
+    if (!clue) return 'irrelevant'; // testimony or unknown item
+    const interp = this.getInterpretationForClue(evidenceId);
+    if (!interp) return 'irrelevant';
+    const tierData = clue.interpretations[interp.selectedTier];
+    if (!tierData) return 'irrelevant';
+    if (tierData.attacksTestimonyIds.includes(sentenceId)) return interp.selectedTier;
+    return 'irrelevant';
+  }
+
+  // 4-level fallback feedback: sentence.responses → round-level → global defaults
+  private getFeedback(round: ConfrontationRound, sentence: TestimonySentence, outcome: 'canonical' | 'partial' | 'misread' | 'irrelevant'): string {
+    if (outcome === 'canonical') return round.onCorrectFeedback;
+    if (outcome === 'partial') return sentence.responses?.partial ?? round.onCorrectFeedback ?? FEEDBACK_DEFAULTS.partial;
+    if (outcome === 'misread') return sentence.responses?.misread ?? round.onRoundLost ?? round.onWrongFeedback ?? FEEDBACK_DEFAULTS.misread;
+    // irrelevant
+    return sentence.responses?.irrelevant ?? round.onWrongFeedback ?? FEEDBACK_DEFAULTS.irrelevant;
+  }
+
+  private canAccuse(): boolean {
+    return Object.values(this.state.confrontationBySuspect).some((conf) =>
+      conf.roundResults.some((r) => r === 'won' || r === 'draw')
+    );
+  }
+
+  private switchSuspect(suspectId: string): void {
+    if (this.state.currentSuspectId === suspectId) return;
+    this.syncSuspectState();
+    const prev = this.state.currentSuspectId;
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    if (!this.state.confrontationBySuspect[suspectId]) {
+      const rounds = this.getRoundsForCurrentSuspect(caseConfig); // temp: borrow helper before setting new id
+      const suspectConf = caseConfig.confrontation.suspects?.find((s) => s.suspectId === suspectId);
+      const newRounds = suspectConf?.rounds ?? caseConfig.confrontation.rounds;
+      this.state.confrontationBySuspect = {
+        ...this.state.confrontationBySuspect,
+        [suspectId]: { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: newRounds.map(() => 'pending' as const), selectedSentenceId: null, status: 'ongoing', lastFeedback: '审视证人的每一句话。找出自相矛盾的那一句。' },
+      };
+      void rounds; // suppress unused warning
+    }
+    this.state.currentSuspectId = suspectId;
+    this.state.confrontation = { ...this.state.confrontationBySuspect[suspectId] };
+    // Path-2 mental-sim: suspect state preserved; Path-5: interpretations untouched
+    console.log(`[T2.6-B] switchSuspect: ${prev}→${suspectId}. prev roundResults=${JSON.stringify(this.state.confrontationBySuspect[prev ?? '']?.roundResults)}`);
+    console.log(`[T2.6-B] interpretations after switchSuspect (unchanged): ${this.state.interpretations.length} entries`);
+    this.persistState();
+    this.render();
+  }
+
+  private openAccuseDialog(): void {
+    this.accuseDialogOpen = true;
+    this.render();
+  }
+
+  private confirmAccuse(suspectId: string): void {
+    // Path-6 mental-sim output
+    console.log(`[T2.6-B] accuseDialog: selected suspectId=${suspectId}`);
+    this.accuseDialogOpen = false;
+    this.state.screen = 'deduction';
+    this.state.overlay = null;
+    this.persistState();
+    this.render();
   }
 
   private openInterpretOverlay(clueId: string): void {
@@ -830,13 +1026,32 @@ export class StageOneApp {
   }
 
   private renderClueCards(): string {
-    if (this.state.inventory.length === 0) return '<p>暂无收集证据</p>';
-    return this.state.inventory
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    // Discovered clues in inventory
+    const discoveredHtml = this.state.inventory
       .map((clue) => {
         const interpreted = this.isClueInterpreted(clue.id);
-        return `<button class="clue-evidence-card" data-open-interpret="${clue.id}"><span class="clue-evidence-title">${clue.title}</span><span class="clue-badge ${interpreted ? 'is-interpreted' : ''}">${interpreted ? '已解读' : '未解读'}</span></button>`;
+        const clueDef = caseConfig.clues.find((c) => c.id === clue.id);
+        const layers = clueDef?.discoveryLayers ?? [];
+        const rs = this.state.clueRuntimeStates.find((r) => r.clueId === clue.id);
+        const currentLayer = rs?.currentLayer ?? 0;
+        const hasMoreLayers = layers.length > 1 && currentLayer < layers.length - 1;
+        const layerBadge = layers.length > 1 ? `<span class="layer-progress">L${currentLayer + 1}/${layers.length}</span>` : '';
+        const deepenBtn = hasMoreLayers ? `<button class="clue-deepen-btn" data-deepen-clue="${clue.id}">深入交互</button>` : '';
+        return `<div class="clue-evidence-row"><button class="clue-evidence-card" data-open-interpret="${clue.id}"><span class="clue-evidence-title">${clue.title}</span>${layerBadge}<span class="clue-badge ${interpreted ? 'is-interpreted' : ''}">${interpreted ? '已解读' : '未解读'}</span></button>${deepenBtn}</div>`;
       })
       .join('');
+    // Locked clues: in case config, not collected, and discoverable=false
+    const lockedHtml = caseConfig.clues
+      .filter((c) => {
+        if (this.state.inventory.some((i) => i.id === c.id)) return false;
+        const rs = this.state.clueRuntimeStates.find((r) => r.clueId === c.id);
+        return rs ? !rs.discoverable : false;
+      })
+      .map((c) => `<div class="clue-locked-card" title="收集所需前置证据后自动解锁"><span class="clue-lock-icon"></span><span class="clue-evidence-title">${c.title}</span></div>`)
+      .join('');
+    if (!discoveredHtml && !lockedHtml) return '<p>暂无收集证据</p>';
+    return discoveredHtml + lockedHtml;
   }
 
   private renderInterpretOverlay(): string {
@@ -844,8 +1059,12 @@ export class StageOneApp {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const clue = caseConfig.clues.find((c) => c.id === this.interpretingClueId);
     if (!clue) return '';
-    const description = clue.discoveryLayers?.[0]?.description ?? clue.description;
+    const rs = this.state.clueRuntimeStates.find((r) => r.clueId === clue.id);
+    const layerIdx = rs?.currentLayer ?? 0;
+    const description = clue.discoveryLayers?.[layerIdx]?.description ?? clue.discoveryLayers?.[0]?.description ?? clue.description;
     const options = this.getInterpretOptions(clue);
+    // Path-4 mental-sim console output
+    console.log(`[T2.6-B] renderInterpretOverlay: clueId=${clue.id} options=${options.length} layer=${layerIdx}`);
     const optionsHtml = options
       .map((opt) => {
         const isSelected = this.pendingInterpretTier === opt.tier;
@@ -874,14 +1093,25 @@ export class StageOneApp {
 
   private renderConfrontationBody(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    const target = caseConfig.characters.find((c) => c.id === caseConfig.confrontation.target);
     const conf = this.state.confrontation;
-    const round = caseConfig.confrontation.rounds[conf.roundIndex];
-    const totalRounds = caseConfig.confrontation.rounds.length;
-    const remain = caseConfig.confrontation.maxMistakesPerRound - conf.mistakesInCurrentRound;
+    const rounds = this.getRoundsForCurrentSuspect(caseConfig);
+    const round = rounds[conf.roundIndex];
+    const totalRounds = rounds.length;
+    const suspectConf = this.getConfForCurrentSuspect(caseConfig);
+    const suspects = caseConfig.confrontation.suspects ?? [];
+    const currentChar = caseConfig.characters.find((c) => c.id === (this.state.currentSuspectId ?? caseConfig.confrontation.target));
 
     const emotion = round?.enterEmotion ?? 'neutral';
-    const portraitSrc = target?.emotionPortraits?.[emotion] ?? target?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png';
+    const portraitSrc = currentChar?.emotionPortraits?.[emotion] ?? currentChar?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png';
+
+    // Suspect tabs (shown even for single suspect to establish the UI affordance)
+    const suspectTabsHtml = suspects.length > 0
+      ? `<div class="suspect-tabs">${suspects.map((s) => {
+          const ch = caseConfig.characters.find((c) => c.id === s.suspectId);
+          const active = s.suspectId === this.state.currentSuspectId;
+          return `<button class="suspect-tab${active ? ' is-active' : ''}" data-switch-suspect="${s.suspectId}">${ch?.name ?? s.suspectId}</button>`;
+        }).join('')}</div>`
+      : '';
 
     const hasSelection = conf.selectedSentenceId !== null;
     type EvidenceDisplay = { id: string; title: string; source: string };
@@ -898,8 +1128,7 @@ export class StageOneApp {
       ? round.sentences
           .map((s) => {
             const isSelected = conf.selectedSentenceId === s.id;
-            const cls = isSelected ? 'testimony-sentence is-selected' : 'testimony-sentence';
-            return `<button class="${cls}" data-select-sentence="${s.id}">${s.text}</button>`;
+            return `<button class="testimony-sentence${isSelected ? ' is-selected' : ''}" data-select-sentence="${s.id}">${s.text}</button>`;
           })
           .join('')
       : '';
@@ -907,37 +1136,41 @@ export class StageOneApp {
     const roundBadges = conf.roundResults
       .map((r, i) => {
         const active = i === conf.roundIndex && conf.status === 'ongoing';
-        const cls = `round-badge is-${r}${active ? ' is-active' : ''}`;
-        return `<span class="${cls}">${i + 1}</span>`;
+        return `<span class="round-badge is-${r}${active ? ' is-active' : ''}">${i + 1}</span>`;
       })
       .join('');
 
     const evidenceCardsHtml = evidenceList
       .map((item) => {
-        const disabled = hasSelection ? '' : 'disabled';
-        return `<button class="evidence-card" data-present-evidence="${item.id}" ${disabled}><strong>${item.title}</strong><small>${item.source}</small></button>`;
+        return `<button class="evidence-card" data-present-evidence="${item.id}" ${hasSelection ? '' : 'disabled'}><strong>${item.title}</strong><small>${item.source}</small></button>`;
       })
       .join('');
 
-    const evidenceHintText = hasSelection
-      ? '选择一条证据反驳被选中的证词'
-      : '先点击周岚的某句证词，再出示证据';
+    const evidenceHintText = hasSelection ? '选择一条证据反驳被选中的证词' : `先点击${currentChar?.name ?? '证人'}的某句证词，再出示证据`;
+
+    const accusable = this.canAccuse();
+    const successNotice = conf.status === 'success' || this.primaryNotice.includes('指认')
+      ? `<p class="confront-success-notice">证据似乎已经足够，你可以指认凶手了。</p>` : '';
+
+    const remain = suspectConf.maxMistakesPerRound - conf.mistakesInCurrentRound;
 
     return `<div class="screen-scrollable"><section class="confrontation-shell">
     <header class="confront-head">
       <div class="confront-head-left">
         <h2>关键对质</h2>
         <div class="round-progress">${roundBadges}</div>
+        ${suspectTabsHtml}
       </div>
       <div class="confront-head-right">
         <p class="round-meta">回合 ${Math.min(conf.roundIndex + 1, totalRounds)} / ${totalRounds}</p>
         <p class="mistakes-meta">剩余容错 <strong>${Math.max(remain, 0)}</strong></p>
       </div>
     </header>
+    ${successNotice}
     <div class="confront-stage">
-      <img src="${portraitSrc}" alt="${target?.name ?? '目标'}" class="confront-portrait" />
+      <img src="${portraitSrc}" alt="${currentChar?.name ?? '目标'}" class="confront-portrait" />
       <div class="testimony-panel">
-        <h3 class="testimony-title">${target?.name ?? '证人'}的证词</h3>
+        <h3 class="testimony-title">${currentChar?.name ?? '证人'}的证词</h3>
         <div class="testimony-list">${sentencesHtml}</div>
       </div>
     </div>
@@ -946,7 +1179,23 @@ export class StageOneApp {
       <h3 class="evidence-title">${evidenceHintText}</h3>
       <div class="evidence-grid">${evidenceCardsHtml}</div>
     </div>
+    <div class="accuse-row">
+      <button class="accuse-btn${accusable ? ' is-ready' : ''}" data-open-accuse-dialog="true" ${accusable ? '' : 'disabled'}>准备指认</button>
+    </div>
   </section></div>`;
+  }
+
+  private renderAccuseDialog(): string {
+    if (!this.accuseDialogOpen) return '';
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const suspects = caseConfig.confrontation.suspects ?? [];
+    const suspectButtons = suspects.length > 0
+      ? suspects.map((s) => {
+          const ch = caseConfig.characters.find((c) => c.id === s.suspectId);
+          return `<button class="accuse-suspect-btn primary-btn" data-confirm-accuse="${s.suspectId}">${ch?.name ?? s.suspectId}</button>`;
+        }).join('')
+      : `<button class="accuse-suspect-btn primary-btn" data-confirm-accuse="${caseConfig.confrontation.target}">${caseConfig.characters.find((c) => c.id === caseConfig.confrontation.target)?.name ?? caseConfig.confrontation.target}</button>`;
+    return `<div class="accuse-dialog-overlay"><div class="accuse-dialog"><h3>指认嫌疑人</h3><p>你认为谁是本案的关键人物？</p><div class="accuse-suspects">${suspectButtons}</div><button class="ghost-btn" data-close-accuse-dialog="true">取消</button></div></div>`;
   }
 
   private renderDeductionBody(): string {
@@ -1022,13 +1271,17 @@ export class StageOneApp {
   private renderResultBody(): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const result = this.state.result ?? this.computeResult();
-    const correct = caseConfig.submission.correct;
+    // T2.6-B: data-driven ending text via endingMatrix
+    const endingKey = this.resolveEnding(result);
+    const ending = caseConfig.endings?.[endingKey];
+    const endingTitle = ending?.title ?? '案件归档';
+    const endingBody = ending?.body ?? `你已锁定真相核心：${caseConfig.submission.correct.suspect}在会前拆封并转移结论页。`;
     return `
       <div class="screen-scrollable">
         <section class="screen-panel result-shell">
-          <h2>案件归档</h2>
+          <h2>${endingTitle}</h2>
           <div class="result-rating"><span>${result.rating}</span><small>${result.score} 分</small></div>
-          <p class="result-truth">你已锁定真相核心：${correct.suspect}在会前拆封并转移结论页。</p>
+          <p class="result-truth">${endingBody}</p>
           <div class="result-chain"><h3>证据链</h3><ol><li>封套二次开启痕迹</li><li>07:28 门禁进入</li><li>碎纸残片落点</li></ol></div>
           <div class="result-actions"><button class="ghost-btn" data-screen="archive">返回档案室</button><button class="primary-btn" data-restart-case="true">重开案件</button></div>
         </section>
@@ -1178,7 +1431,7 @@ export class StageOneApp {
           <section class="visual-stage">
             ${DEV_MODE ? `<div class="screen-tag">SCREEN / ${this.state.screen.toUpperCase()}</div>` : ''}
             ${this.getScreenBody(caseConfig.scenes.find((s) => s.id === this.state.currentSceneId)?.background ?? caseConfig.scenes[0].background)}
-            ${this.renderInspectOverlay()}${this.renderDialogueOverlay()}${this.renderHintOverlay()}${this.renderInterpretOverlay()}
+            ${this.renderInspectOverlay()}${this.renderDialogueOverlay()}${this.renderHintOverlay()}${this.renderInterpretOverlay()}${this.renderAccuseDialog()}
           </section>
           ${DEV_MODE && !archiveOrIntro ? `<aside class="case-board ${this.boardOpen ? 'is-open' : ''}">
             <h2>案件板</h2>
@@ -1231,7 +1484,7 @@ export class StageOneApp {
     this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(UI_CLICK_AUDIO, 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
     const startConf = this.root.querySelector<HTMLButtonElement>('[data-start-confrontation="true"]');
     if (startConf) startConf.addEventListener('click', () => this.startConfrontation());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const conf = this.state.confrontation; const caseConf = loadCaseConfig(this.state.caseId); const selectedSentenceId = conf.selectedSentenceId ?? ''; const clueDef = caseConf.clues.find((c) => c.id === evidenceId); const interp = clueDef ? this.getInterpretationForClue(evidenceId) : null; const tierData = interp && clueDef ? clueDef.interpretations[interp.selectedTier] : null; const isCorrect = !!(tierData?.attacksTestimonyIds.includes(selectedSentenceId)); this.playSfx(isCorrect ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, isCorrect ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const caseConf = loadCaseConfig(this.state.caseId); const outcome = this.resolveOutcome(evidenceId, this.state.confrontation.selectedSentenceId ?? '', caseConf); this.playSfx(outcome === 'canonical' ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, outcome === 'canonical' ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-sentence]').forEach((button) => button.addEventListener('click', () => button.dataset.selectSentence && this.selectSentence(button.dataset.selectSentence)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-timeline-clue]').forEach((button) => button.addEventListener('click', () => button.dataset.selectTimelineClue && this.selectTimelineClue(button.dataset.selectTimelineClue)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-place-slot]').forEach((button) => button.addEventListener('click', () => { const slot = loadCaseConfig(this.state.caseId).timelineSlots.find((s) => s.id === button.dataset.placeSlot); if (slot) this.placeTimeline(slot); }));
@@ -1257,5 +1510,21 @@ export class StageOneApp {
     if (closeInterpret) closeInterpret.addEventListener('click', () => this.closeInterpretOverlay());
     const exitToSelector = this.root.querySelector<HTMLButtonElement>('[data-exit-to-selector="true"]');
     if (exitToSelector) exitToSelector.addEventListener('click', () => this.onExit?.());
+    // T2.6-B: layer deep-dive
+    this.root.querySelectorAll<HTMLButtonElement>('[data-deepen-clue]').forEach((btn) =>
+      btn.addEventListener('click', () => { const id = btn.dataset.deepenClue; if (id) this.advanceLayer(id); })
+    );
+    // T2.6-B: suspect switching
+    this.root.querySelectorAll<HTMLButtonElement>('[data-switch-suspect]').forEach((btn) =>
+      btn.addEventListener('click', () => { const id = btn.dataset.switchSuspect; if (id) this.switchSuspect(id); })
+    );
+    // T2.6-B: accuse dialog
+    const openAccuse = this.root.querySelector<HTMLButtonElement>('[data-open-accuse-dialog="true"]');
+    if (openAccuse) openAccuse.addEventListener('click', () => this.openAccuseDialog());
+    const closeAccuse = this.root.querySelector<HTMLButtonElement>('[data-close-accuse-dialog="true"]');
+    if (closeAccuse) closeAccuse.addEventListener('click', () => { this.accuseDialogOpen = false; this.render(); });
+    this.root.querySelectorAll<HTMLButtonElement>('[data-confirm-accuse]').forEach((btn) =>
+      btn.addEventListener('click', () => { const id = btn.dataset.confirmAccuse; if (id) this.confirmAccuse(id); })
+    );
   }
 }
