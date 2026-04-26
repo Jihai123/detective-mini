@@ -104,7 +104,8 @@ function migrateSaveV5toV6(raw: Record<string, unknown>): Record<string, unknown
     currentLayer: 0,
   }));
 
-  console.log(`[saveStore] migrateSaveV5toV6: caseId=${caseId}, primaryTarget=${targetId}, clues=${clueRuntimeStates.length}`);
+  // collectedClues = 已收集 clue 数(inventory 长度),不等于案件总 clue 数
+  console.log(`[saveStore] migrateSaveV5toV6: caseId=${caseId}, primaryTarget=${targetId}, collectedClues=${clueRuntimeStates.length}`);
   return {
     ...raw,
     saveVersion: 6,
