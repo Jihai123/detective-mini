@@ -46,7 +46,7 @@ export function validateCaseConfig(input: unknown): asserts input is StageCaseCo
 }
 
 export function loadCaseConfig(caseId: string): StageCaseConfig {
-  const config = getCaseById(caseId).config;
+  const config = getCaseById(caseId).config!;
   validateCaseConfig(config);
   return config;
 }

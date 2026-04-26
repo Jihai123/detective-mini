@@ -11,5 +11,5 @@ export type CaseMeta = {
 
 export type CaseDefinition = {
   meta: CaseMeta;
-  config: StageCaseConfig;
+  config?: StageCaseConfig;
 };
