@@ -321,6 +321,10 @@ export type StageRuntimeState = {
   restoreNotice: string | null;
   contradictionMessage: string | null;
   confrontation: ConfrontationState;
+  // T2.6-B: per-suspect confrontation state dict; flat confrontation is the active suspect's copy
+  confrontationBySuspect: Record<string, ConfrontationState>;
+  // T2.6-B: which suspect is currently being questioned (set when entering confrontation screen)
+  currentSuspectId: string | null;
   timeline: TimelineState;
   submission: SubmissionState;
   result: ResultState | null;
@@ -330,6 +334,8 @@ export type StageRuntimeState = {
   eventFeed: StandardEvent[];
   // T2 激活
   interpretations: InterpretationState;
+  // T2.6-B: per-clue discovery/layer runtime states (all case clues, including undiscovered)
+  clueRuntimeStates: ClueRuntimeState[];
 };
 
 export type StageSaveData = {
@@ -354,8 +360,10 @@ export type StageSaveData = {
   lastDiscoveryAt: number;
   // T2 激活
   interpretations: InterpretationState;
-  // T2.6: 多嫌疑人对质状态字典 { suspectId: ConfrontationState }(T2.6-B 激活,T2.6-A 仅写入 migration)
+  // T2.6: 多嫌疑人对质状态字典 { suspectId: ConfrontationState }(T2.6-B 激活)
   confrontationBySuspect?: Record<string, ConfrontationState>;
+  // T2.6-B: 当前正在对质的嫌疑人 ID(页面刷新后恢复)
+  currentSuspectId?: string | null;
   // T2.6: 每条线索的发现/layer runtime 状态(T2.6-B 激活)
   clueRuntimeStates?: ClueRuntimeState[];
 };
