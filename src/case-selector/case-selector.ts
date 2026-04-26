@@ -25,12 +25,12 @@ export class CaseSelector {
       .join('');
 
     this.root.innerHTML = `
-      <section class="archive-shell">
-        <header class="archive-header">
-          <h1>档案室 / CASE ARCHIVE</h1>
+      <section class="directory-shell">
+        <header class="directory-header">
+          <h1>案件目录 / CASE DIRECTORY</h1>
           <p>选择要调查的案件</p>
         </header>
-        <section class="archive-grid">${cards}</section>
+        <section class="directory-grid">${cards}</section>
       </section>
     `;
   }
@@ -38,12 +38,11 @@ export class CaseSelector {
   private renderCard(meta: CaseMeta): string {
     if (!meta.unlocked) {
       return `
-        <article class="case-card case-card-side case-card-locked" aria-disabled="true" title="敬请期待">
-          <div class="case-card-content">
+        <article class="directory-card directory-card-locked" aria-disabled="true">
+          <div class="directory-card-content">
             <h3>${meta.title}</h3>
-            <p class="case-tags">${this.difficultyLabel(meta.difficulty)}</p>
-            <p class="case-summary">该档案尚未开放，请等待后续更新。</p>
-            <span class="locked-tag">即将上线</span>
+            <p class="directory-tags">${this.difficultyLabel(meta.difficulty)}</p>
+            <span class="directory-locked-tag"><svg width="10" height="12" viewBox="0 0 10 12" fill="none" aria-hidden="true"><rect x=".75" y="5.25" width="8.5" height="6.5" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 5V3a2.5 2.5 0 015 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> 即将上线</span>
           </div>
         </article>
       `;
@@ -54,12 +53,12 @@ export class CaseSelector {
     const btnLabel = hasSave ? '继续调查' : '开始调查';
 
     return `
-      <article class="case-card ${isMain ? 'case-card-main' : 'case-card-side'}">
-        ${isMain ? `<div class="case-card-cover" style="background-image:url('/assets/cases/${meta.id}/scenes/archive_cover.jpg')"></div>` : ''}
-        <div class="case-card-content">
+      <article class="directory-card${isMain ? ' directory-card-main' : ''}">
+        ${isMain ? `<div class="directory-card-cover" style="background-image:url('/assets/cases/${meta.id}/scenes/archive_cover.jpg')"></div>` : ''}
+        <div class="directory-card-content">
           ${isMain ? `<h2>${meta.title}</h2>` : `<h3>${meta.title}</h3>`}
-          <p class="case-tags">${this.difficultyLabel(meta.difficulty)}</p>
-          <button class="${isMain ? 'primary-btn archive-enter-btn' : 'ghost-btn'}" data-select-case="${meta.id}">${btnLabel}</button>
+          <p class="directory-tags">${this.difficultyLabel(meta.difficulty)}</p>
+          <button class="primary-btn directory-enter-btn" data-select-case="${meta.id}">${btnLabel}</button>
         </div>
       </article>
     `;

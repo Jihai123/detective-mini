@@ -77,6 +77,39 @@ body {
 .case-card-side { opacity: 0.84; justify-content: center; min-height: 420px; }
 .case-card-locked { opacity: 0.5; filter: grayscale(0.2); }
 
+/* ── Case Directory / 案件目录 ─ pre-launch selector ───────────────── */
+.directory-shell {
+  min-height: 560px;
+  border: 1px solid rgba(120, 120, 140, 0.22);
+  border-radius: 14px;
+  padding: 32px 28px;
+  background-color: rgba(18, 18, 24, 0.9);
+  position: relative;
+  overflow: hidden;
+}
+.directory-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(900px 300px at 50% -40%, rgba(44, 44, 60, 0.28), transparent 60%);
+}
+.directory-header, .directory-grid { position: relative; z-index: 1; }
+.directory-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.directory-header h1 { margin: 0; font-size: 40px; font-weight: 500; letter-spacing: 0.05em; color: #d0d0e0; }
+.directory-header p { margin: 0; color: #666678; font-size: 14px; letter-spacing: 0.04em; }
+.directory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.directory-card { border: 1px solid rgba(110, 110, 130, 0.3); border-radius: 12px; background: rgba(20, 20, 28, 0.92); display: flex; flex-direction: column; overflow: hidden; transition: border-color 0.18s ease; }
+.directory-card:not(.directory-card-locked):hover { border-color: rgba(160, 160, 180, 0.6); }
+.directory-card-main { border-color: rgba(150, 150, 170, 0.45); }
+.directory-card-cover { min-height: 200px; background-size: cover; background-position: center; filter: saturate(0.45) brightness(0.65); }
+.directory-card-content { padding: 18px 20px 20px; display: grid; gap: 10px; }
+.directory-card h2 { margin: 0; font-size: 26px; font-weight: 500; letter-spacing: 0.03em; color: #dcdcec; }
+.directory-card h3 { margin: 0; font-size: 22px; font-weight: 500; letter-spacing: 0.03em; color: #b0b0c4; }
+.directory-tags { margin: 0; color: #5c5c70; font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; }
+.directory-enter-btn { width: fit-content; margin-top: 6px; }
+.directory-card-locked { opacity: 0.45; cursor: default; }
+.directory-locked-tag { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid rgba(100, 100, 120, 0.35); border-radius: 999px; color: #666678; background: rgba(10, 10, 16, 0.85); font-size: 12px; width: fit-content; }
+
 .briefing-shell {
   border: 1px solid rgba(155, 175, 224, 0.28);
   border-radius: 14px;
@@ -245,6 +278,8 @@ button { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px;
   .investigation-stage { min-height: 420px; }
   .archive-header, .briefing-header { flex-direction: column; align-items: flex-start; }
   .archive-grid, .briefing-layout { grid-template-columns: 1fr; }
+  .directory-header { flex-direction: column; align-items: flex-start; }
+  .directory-card-cover { min-height: 160px; }
   .case-card-side { min-height: auto; }
   .briefing-visual { min-height: 280px; }
   .case-board { position: fixed; right: 10px; top: 80px; bottom: 90px; width: min(88vw, 360px); transform: translateX(105%); transition: transform .2s ease; z-index: 20; overflow: auto; }
