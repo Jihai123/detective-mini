@@ -1,5 +1,5 @@
 import { loadCaseConfig } from './caseLoader';
-import { loadStageSave, saveStageState } from './saveStore';
+import { getSaveKey, loadStageSave, saveStageState } from './saveStore';
 import type {
   CharacterConfig,
   ClueConfig,
@@ -58,9 +58,14 @@ export class StageOneApp {
 
   private state: StageRuntimeState;
 
-  constructor({ root, caseId }: { root: HTMLElement; caseId: string }) {
+  private readonly onExit?: () => void;
+
+  private idleHintTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor({ root, caseId, onExit }: { root: HTMLElement; caseId: string; onExit?: () => void }) {
     this.root = root;
-    const existingSave = loadStageSave();
+    this.onExit = onExit;
+    const existingSave = loadStageSave(caseId);
     const caseConfig = loadCaseConfig(existingSave?.caseId ?? caseId);
     const firstScene = caseConfig.scenes[0];
 
@@ -197,7 +202,7 @@ export class StageOneApp {
   }
 
   private setupIdleHint(): void {
-    window.setInterval(() => {
+    this.idleHintTimer = window.setInterval(() => {
       const delta = Date.now() - this.state.lastDiscoveryAt;
       if (this.state.screen === 'investigation' && delta > 90000) {
         this.primaryNotice = '线索停滞较久：回到 desk / door_terminal 或与周岚复核口径。';
@@ -209,12 +214,24 @@ export class StageOneApp {
     }, 15000);
   }
 
+  dispose(): void {
+    if (this.idleHintTimer !== null) {
+      window.clearInterval(this.idleHintTimer);
+      this.idleHintTimer = null;
+    }
+    if (this.ambienceAudio) {
+      this.ambienceAudio.pause();
+      this.ambienceAudio = null;
+    }
+    this.root.innerHTML = '';
+  }
+
   private emitEvent(event: StandardEvent): void {
     this.events.dispatchEvent(new CustomEvent(ENGINE_EVENT_NAME, { detail: event }));
   }
 
   private persistState(): void {
-    saveStageState({
+    saveStageState(this.state.caseId, {
       caseId: this.state.caseId,
       screen: this.state.screen,
       timestamp: this.state.updatedAt,
@@ -643,7 +660,7 @@ export class StageOneApp {
   }
 
   private restartCase(): void {
-    localStorage.removeItem('detective-mini.stage1.save');
+    localStorage.removeItem(getSaveKey(this.state.caseId));
     window.location.reload();
   }
 
@@ -1062,8 +1079,11 @@ export class StageOneApp {
     return `
       <section class="archive-shell" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg'), url('/assets/cases/case-001/scenes/review_room.jpg')">
         <header class="archive-header">
-          <h1>档案室 / CASE ARCHIVE</h1>
-          <p>选择档案并进入调查</p>
+          <div>
+            <h1>档案室 / CASE ARCHIVE</h1>
+            <p>选择档案并进入调查</p>
+          </div>
+          ${this.onExit ? '<button class="ghost-btn subtle-btn" data-exit-to-selector="true">← 返回选择</button>' : ''}
         </header>
         <section class="archive-grid">
           <article class="case-card case-card-main">
@@ -1243,5 +1263,7 @@ export class StageOneApp {
     if (confirmInterpret) confirmInterpret.addEventListener('click', () => this.confirmInterpret());
     const closeInterpret = this.root.querySelector<HTMLButtonElement>('[data-close-interpret="true"]');
     if (closeInterpret) closeInterpret.addEventListener('click', () => this.closeInterpretOverlay());
+    const exitToSelector = this.root.querySelector<HTMLButtonElement>('[data-exit-to-selector="true"]');
+    if (exitToSelector) exitToSelector.addEventListener('click', () => this.onExit?.());
   }
 }
