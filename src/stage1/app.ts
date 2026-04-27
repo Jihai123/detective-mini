@@ -493,7 +493,7 @@ export class StageOneApp {
   }
 
   // T2.6-B: 4-outcome attack dispatch.
-  // canonical→won | partial→draw | misread→lost+lostByMisread | irrelevant→no effect
+  // canonical→won(advance) | partial→draw(advance) | misread→quota++(advance+lost only when exhausted) | irrelevant→no effect
   private presentEvidence(evidenceId: string): void {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const rounds = this.getRoundsForCurrentSuspect(caseConfig);
@@ -516,10 +516,12 @@ export class StageOneApp {
 
     const outcome = this.resolveOutcome(evidenceId, selectedId, caseConfig);
     const feedback = this.getFeedback(round, sentence, outcome);
-    console.log(`[T2.6-B] presentEvidence: evidence=${evidenceId} sentence=${selectedId} outcome=${outcome}`);
+    const mistakesBefore = this.state.confrontation.mistakesInCurrentRound;
+    console.log(`[T2.6-B] presentEvidence: evidence=${evidenceId} sentence=${selectedId} outcome=${outcome} mistakesBefore=${mistakesBefore}`);
 
     if (outcome === 'irrelevant') {
       // No round change, no mistake consumed
+      console.log(`[inventory] irrelevant early-return: mistakesInCurrentRound stays ${mistakesBefore}`);
       this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: null, lastFeedback: feedback };
       this.syncSuspectState();
       this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { outcome, round: `${this.state.confrontation.roundIndex}` } });
@@ -528,26 +530,49 @@ export class StageOneApp {
       return;
     }
 
-    const newResults = [...this.state.confrontation.roundResults];
-    if (outcome === 'canonical') {
-      newResults[this.state.confrontation.roundIndex] = 'won';
-    } else if (outcome === 'partial') {
-      newResults[this.state.confrontation.roundIndex] = 'draw';
+    if (outcome === 'misread') {
+      const newMistakes = mistakesBefore + 1;
+      const suspectConf = this.getConfForCurrentSuspect(caseConfig);
+      if (newMistakes >= suspectConf.maxMistakesPerRound) {
+        // quota exhausted → mark round lost and advance
+        const newResults = [...this.state.confrontation.roundResults];
+        newResults[this.state.confrontation.roundIndex] = 'lost';
+        console.log(`[inventory] misread quota exhausted: mistakes=${newMistakes}/${suspectConf.maxMistakesPerRound} → round lost, advancing`);
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          roundIndex: this.state.confrontation.roundIndex + 1,
+          mistakesInCurrentRound: 0,
+          roundResults: newResults,
+          selectedSentenceId: null,
+          lastFeedback: feedback,
+          lostByMisread: true,
+        };
+        this.advanceToNextPlayableRound();
+      } else {
+        // quota not yet exhausted → accumulate, stay in round
+        console.log(`[inventory] misread within quota: mistakes=${newMistakes}/${suspectConf.maxMistakesPerRound} → stay in round`);
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          mistakesInCurrentRound: newMistakes,
+          selectedSentenceId: null,
+          lastFeedback: feedback,
+        };
+      }
     } else {
-      // misread
-      newResults[this.state.confrontation.roundIndex] = 'lost';
+      // canonical or partial → advance round immediately, reset mistakes for new round
+      const newResults = [...this.state.confrontation.roundResults];
+      newResults[this.state.confrontation.roundIndex] = outcome === 'canonical' ? 'won' : 'draw';
+      console.log(`[inventory] ${outcome}: roundResult=${newResults[this.state.confrontation.roundIndex]} mistakesInCurrentRound reset 0 (was ${mistakesBefore})`);
+      this.state.confrontation = {
+        ...this.state.confrontation,
+        roundIndex: this.state.confrontation.roundIndex + 1,
+        mistakesInCurrentRound: 0,
+        roundResults: newResults,
+        selectedSentenceId: null,
+        lastFeedback: feedback,
+      };
+      this.advanceToNextPlayableRound();
     }
-
-    this.state.confrontation = {
-      ...this.state.confrontation,
-      roundIndex: this.state.confrontation.roundIndex + 1,
-      mistakesInCurrentRound: 0,
-      roundResults: newResults,
-      selectedSentenceId: null,
-      lastFeedback: feedback,
-      lostByMisread: outcome === 'misread' ? true : undefined,
-    };
-    this.advanceToNextPlayableRound();
     this.syncSuspectState();
     this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { outcome, round: `${this.state.confrontation.roundIndex}` } });
     this.persistState();
@@ -576,9 +601,11 @@ export class StageOneApp {
       this.syncSuspectState();
       this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
       this.state.hintCount += 1;
-      this.primaryNotice = '关键对质未能推进：回到调查区补齐证据。';
-      this.state.screen = 'investigation';
-      this.state.objective = '对质受挫，回调查区补证据后再战。';
+      // All rounds exhausted with no majority win → go directly to failure result screen.
+      this.state.result = this.computeResult();
+      this.state.screen = 'result';
+      this.state.overlay = null;
+      this.emitEvent({ type: 'SUBMISSION_EVALUATED', timestamp: Date.now(), payload: { rating: this.state.result.rating } });
       return;
     }
 
@@ -847,12 +874,14 @@ export class StageOneApp {
   // outcome ∈ {canonical, partial, misread, irrelevant}
   private resolveOutcome(evidenceId: string, sentenceId: string, caseConfig: StageCaseConfig): 'canonical' | 'partial' | 'misread' | 'irrelevant' {
     const clue = caseConfig.clues.find((c) => c.id === evidenceId);
-    if (!clue) return 'irrelevant'; // testimony or unknown item
+    if (!clue) { console.log(`[inventory] resolveOutcome: clue ${evidenceId} not found → irrelevant`); return 'irrelevant'; }
     const interp = this.getInterpretationForClue(evidenceId);
-    if (!interp) return 'irrelevant';
+    if (!interp) { console.log(`[inventory] resolveOutcome: no interpretation for ${evidenceId} → irrelevant`); return 'irrelevant'; }
     const tierData = clue.interpretations[interp.selectedTier];
-    if (!tierData) return 'irrelevant';
-    if (tierData.attacksTestimonyIds.includes(sentenceId)) return interp.selectedTier;
+    if (!tierData) { console.log(`[inventory] resolveOutcome: tier ${interp.selectedTier} data missing for ${evidenceId} → irrelevant`); return 'irrelevant'; }
+    const hits = tierData.attacksTestimonyIds.includes(sentenceId);
+    console.log(`[inventory] resolveOutcome: evidence=${evidenceId} tier=${interp.selectedTier} attacksIds=${JSON.stringify(tierData.attacksTestimonyIds)} sentence=${sentenceId} hits=${hits} → ${hits ? interp.selectedTier : 'irrelevant'}`);
+    if (hits) return interp.selectedTier;
     return 'irrelevant';
   }
 
