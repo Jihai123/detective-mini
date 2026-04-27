@@ -516,10 +516,12 @@ export class StageOneApp {
 
     const outcome = this.resolveOutcome(evidenceId, selectedId, caseConfig);
     const feedback = this.getFeedback(round, sentence, outcome);
-    console.log(`[T2.6-B] presentEvidence: evidence=${evidenceId} sentence=${selectedId} outcome=${outcome}`);
+    const mistakesBefore = this.state.confrontation.mistakesInCurrentRound;
+    console.log(`[T2.6-B] presentEvidence: evidence=${evidenceId} sentence=${selectedId} outcome=${outcome} mistakesBefore=${mistakesBefore}`);
 
     if (outcome === 'irrelevant') {
       // No round change, no mistake consumed
+      console.log(`[inventory] irrelevant early-return: mistakesInCurrentRound stays ${mistakesBefore}`);
       this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: null, lastFeedback: feedback };
       this.syncSuspectState();
       this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { outcome, round: `${this.state.confrontation.roundIndex}` } });
@@ -537,6 +539,7 @@ export class StageOneApp {
       // misread
       newResults[this.state.confrontation.roundIndex] = 'lost';
     }
+    console.log(`[inventory] non-irrelevant path: outcome=${outcome} roundResult=${newResults[this.state.confrontation.roundIndex]} mistakesInCurrentRound reset 0 (was ${mistakesBefore})`);
 
     this.state.confrontation = {
       ...this.state.confrontation,
@@ -847,12 +850,14 @@ export class StageOneApp {
   // outcome ∈ {canonical, partial, misread, irrelevant}
   private resolveOutcome(evidenceId: string, sentenceId: string, caseConfig: StageCaseConfig): 'canonical' | 'partial' | 'misread' | 'irrelevant' {
     const clue = caseConfig.clues.find((c) => c.id === evidenceId);
-    if (!clue) return 'irrelevant'; // testimony or unknown item
+    if (!clue) { console.log(`[inventory] resolveOutcome: clue ${evidenceId} not found → irrelevant`); return 'irrelevant'; }
     const interp = this.getInterpretationForClue(evidenceId);
-    if (!interp) return 'irrelevant';
+    if (!interp) { console.log(`[inventory] resolveOutcome: no interpretation for ${evidenceId} → irrelevant`); return 'irrelevant'; }
     const tierData = clue.interpretations[interp.selectedTier];
-    if (!tierData) return 'irrelevant';
-    if (tierData.attacksTestimonyIds.includes(sentenceId)) return interp.selectedTier;
+    if (!tierData) { console.log(`[inventory] resolveOutcome: tier ${interp.selectedTier} data missing for ${evidenceId} → irrelevant`); return 'irrelevant'; }
+    const hits = tierData.attacksTestimonyIds.includes(sentenceId);
+    console.log(`[inventory] resolveOutcome: evidence=${evidenceId} tier=${interp.selectedTier} attacksIds=${JSON.stringify(tierData.attacksTestimonyIds)} sentence=${sentenceId} hits=${hits} → ${hits ? interp.selectedTier : 'irrelevant'}`);
+    if (hits) return interp.selectedTier;
     return 'irrelevant';
   }
 
