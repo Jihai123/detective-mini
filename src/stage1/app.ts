@@ -493,7 +493,7 @@ export class StageOneApp {
   }
 
   // T2.6-B: 4-outcome attack dispatch.
-  // canonical→won | partial→draw | misread→lost+lostByMisread | irrelevant→no effect
+  // canonical→won(advance) | partial→draw(advance) | misread→quota++(advance+lost only when exhausted) | irrelevant→no effect
   private presentEvidence(evidenceId: string): void {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const rounds = this.getRoundsForCurrentSuspect(caseConfig);
@@ -530,27 +530,49 @@ export class StageOneApp {
       return;
     }
 
-    const newResults = [...this.state.confrontation.roundResults];
-    if (outcome === 'canonical') {
-      newResults[this.state.confrontation.roundIndex] = 'won';
-    } else if (outcome === 'partial') {
-      newResults[this.state.confrontation.roundIndex] = 'draw';
+    if (outcome === 'misread') {
+      const newMistakes = mistakesBefore + 1;
+      const suspectConf = this.getConfForCurrentSuspect(caseConfig);
+      if (newMistakes >= suspectConf.maxMistakesPerRound) {
+        // quota exhausted → mark round lost and advance
+        const newResults = [...this.state.confrontation.roundResults];
+        newResults[this.state.confrontation.roundIndex] = 'lost';
+        console.log(`[inventory] misread quota exhausted: mistakes=${newMistakes}/${suspectConf.maxMistakesPerRound} → round lost, advancing`);
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          roundIndex: this.state.confrontation.roundIndex + 1,
+          mistakesInCurrentRound: 0,
+          roundResults: newResults,
+          selectedSentenceId: null,
+          lastFeedback: feedback,
+          lostByMisread: true,
+        };
+        this.advanceToNextPlayableRound();
+      } else {
+        // quota not yet exhausted → accumulate, stay in round
+        console.log(`[inventory] misread within quota: mistakes=${newMistakes}/${suspectConf.maxMistakesPerRound} → stay in round`);
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          mistakesInCurrentRound: newMistakes,
+          selectedSentenceId: null,
+          lastFeedback: feedback,
+        };
+      }
     } else {
-      // misread
-      newResults[this.state.confrontation.roundIndex] = 'lost';
+      // canonical or partial → advance round immediately, reset mistakes for new round
+      const newResults = [...this.state.confrontation.roundResults];
+      newResults[this.state.confrontation.roundIndex] = outcome === 'canonical' ? 'won' : 'draw';
+      console.log(`[inventory] ${outcome}: roundResult=${newResults[this.state.confrontation.roundIndex]} mistakesInCurrentRound reset 0 (was ${mistakesBefore})`);
+      this.state.confrontation = {
+        ...this.state.confrontation,
+        roundIndex: this.state.confrontation.roundIndex + 1,
+        mistakesInCurrentRound: 0,
+        roundResults: newResults,
+        selectedSentenceId: null,
+        lastFeedback: feedback,
+      };
+      this.advanceToNextPlayableRound();
     }
-    console.log(`[inventory] non-irrelevant path: outcome=${outcome} roundResult=${newResults[this.state.confrontation.roundIndex]} mistakesInCurrentRound reset 0 (was ${mistakesBefore})`);
-
-    this.state.confrontation = {
-      ...this.state.confrontation,
-      roundIndex: this.state.confrontation.roundIndex + 1,
-      mistakesInCurrentRound: 0,
-      roundResults: newResults,
-      selectedSentenceId: null,
-      lastFeedback: feedback,
-      lostByMisread: outcome === 'misread' ? true : undefined,
-    };
-    this.advanceToNextPlayableRound();
     this.syncSuspectState();
     this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { outcome, round: `${this.state.confrontation.roundIndex}` } });
     this.persistState();
