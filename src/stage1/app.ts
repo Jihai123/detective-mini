@@ -601,9 +601,11 @@ export class StageOneApp {
       this.syncSuspectState();
       this.state.flags = { ...this.state.flags, 'used-hint-or-fallback': true };
       this.state.hintCount += 1;
-      this.primaryNotice = '关键对质未能推进：回到调查区补齐证据。';
-      this.state.screen = 'investigation';
-      this.state.objective = '对质受挫，回调查区补证据后再战。';
+      // All rounds exhausted with no majority win → go directly to failure result screen.
+      this.state.result = this.computeResult();
+      this.state.screen = 'result';
+      this.state.overlay = null;
+      this.emitEvent({ type: 'SUBMISSION_EVALUATED', timestamp: Date.now(), payload: { rating: this.state.result.rating } });
       return;
     }
 
