@@ -219,7 +219,13 @@ case-001 实战 drawCount 永远=0,公式退化等价旧 `wonCount > lostCount`,
 **Confrontation**
 - 多嫌疑人平行切换,confrontationBySuspect 字典
 - 进入需:所有 isKey clue 已收集 + 已解读
-- 4 outcome:canonical(won) / partial(draw) / misread(lost+flag) / irrelevant(无 cost)
+- - 4 outcome 真实语义(T2.6 hotfix 后明确):
+  - canonical + hits=true → roundResult=won,推进下一 round,mistakes 重置 0
+  - misread + hits=true → mistakes+1,达到 maxMistakes 才 round=lost(带 lostByMisread)
+  - misread + hits=false / canonical + hits=false → irrelevant,**不扣 quota,设计意图**
+  - partial → draw(case-001 二档解读不会触发)
+- "选错证据"在玩家心智 ≠ 代码 misread。玩家拿"无关 clue"攻击走 irrelevant 路径不扣。
+- handleConfrontationEnd:hasMajorityWin=false 直接跳 failure result 屏(hotfix 修复 allLost 不可达)
 - hasMajorityWin = wonCount>=1 && (won+draw)>lost
 - 终止由玩家手动"准备指认",不再自动跳 deduction
 
@@ -254,6 +260,10 @@ case-001 实战 drawCount 永远=0,公式退化等价旧 `wonCount > lostCount`,
 - archive 页系统化(T4)
 - 扣分明细不透明(T3 附带任务)
 - result 屏 success / failure 文本相同(T2.6-A 显式标记的 T3 任务)
+- case-001 confrontation UX 缺口:irrelevant 不扣容错符合 4-outcome 设计,
+  但玩家心智上"选错 = 应被惩罚"。tutorial case 内容简单(4 clue 中 1 条死、
+  3 条 1:1 对应 sentence)放大该体感。case-002 复杂数据下问题会消解。
+  case-001 不补提示(决策:tutorial 简单接受)。
 
 ### 🟢 P2 技术债
 - getCharacterVisual 函数已退化为透传
@@ -367,7 +377,26 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
 - unlock 收集瞬间触发(非按需 render)
 - layer 与 interpretation 解耦
 - "准备指认"按钮约束:至少击破 1 sentence 后才可点击,顶部提示"证据似乎已经足够"
+### T2.6 hotfix 决策(实测发现 → 修复 → 数据缺口接受)
 
+**修复落地**(3 commit + 1 inventory + 1 allLost,共 5 commit)
+- Bug A:case-001 misread.attacksTestimonyIds 从 [] 改为 canonical 同值
+- Bug B + C:misread 分支 mistake+1 累加,quota 用尽才 round=lost(语义重写)
+- allLost 跳转:hasMajorityWin=false 直接进 failure 结果屏
+
+**实测纪律新增三条**(必须执行)
+- console 日志 ≠ 浏览器实测。Code 跑通的 path 日志只代表代码路径可达,
+  不代表玩家实操路径触达。验收要求"操作描述 + 对应日志"对照。
+- failure path 真人触达必须验证。T2.6 当时漏验,导致 allLost 路径长期不可达。
+- "行为不变"实证以**玩家可操作触达的实测路径文本**为依据,不是单 path
+  console 日志或 mental simulation。
+
+**case-001 数据缺口接受决策**
+- case-001 confrontation 4 outcome 演示不完整(camera-gap-0731 死 clue + 
+  3 条 1:1 clue→sentence)
+- 不为补全 case-001 引入 misread 跨 round 攻击或 irrelevant 扣 quota 改动
+- case-002 复杂数据(10 clue × 3 档 × 多 sentence)是 4 outcome 真正首演场
+- case-001 tutorial 难度接受"选对就赢/选错就漂"体感
 ### 测试纪律
 - 每个 T 的验收必须有一次"玩家不按剧本走"的实测
 - Code 静态验证 + tsc 全绿 + 正常路径覆盖不到异常流程
@@ -392,7 +421,7 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
 ## 9. 下一步:T2.7 case 导入架构
 
 ### 决策记录
-- T2.6 已合 main,case-002 机制地基全部到位
+- T2.6 + T2.6 hotfix 已合 main,case-002 机制地基全部到位
 - 下一步 T2.7:把 case 数据从 TS 文件外置为 JSON,建立素材命名约定让新 case 加载零代码改动
 - T2.7 完成后 T2.8 把 case-002 三份剧本文档塞入 JSON
 
