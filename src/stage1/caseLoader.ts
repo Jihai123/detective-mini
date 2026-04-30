@@ -1,6 +1,9 @@
 import { getCaseById } from '../cases';
 import type { ConditionExpr, DialogueNode, HotspotConfig, StageCaseConfig } from './types';
 
+// T2.7-A: JSON-backed case registry (empty; populated in T2.7-B via static imports)
+const JSON_CASE_REGISTRY: Record<string, StageCaseConfig> = {};
+
 function validateCondition(condition: ConditionExpr | undefined, caseId: string, field: string): void {
   if (!condition) return;
   if (Array.isArray(condition)) return;
@@ -53,6 +56,11 @@ export function validateCaseConfig(input: unknown): asserts input is StageCaseCo
 }
 
 export function loadCaseConfig(caseId: string): StageCaseConfig {
+  const jsonConfig = JSON_CASE_REGISTRY[caseId];
+  if (jsonConfig !== undefined) {
+    validateCaseConfig(jsonConfig);
+    return jsonConfig;
+  }
   const config = getCaseById(caseId).config!;
   validateCaseConfig(config);
   return config;
