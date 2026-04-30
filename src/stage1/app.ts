@@ -1,5 +1,6 @@
 import { loadCaseConfig } from './caseLoader';
 import { getSaveKey, loadStageSave, saveStageState } from './saveStore';
+import { getCaseAssetPath, FALLBACK_PATHS } from '../cases/case-paths';
 import type {
   CharacterConfig,
   ClueConfig,
@@ -37,15 +38,11 @@ const FEEDBACK_DEFAULTS = {
   misread: '你的解读方向偏了——这条证据的意义另有所指。',
 } as const;
 
-const AMBIENCE_TRACKS: Record<string, string> = {
-  review_room: '/assets/cases/case-001/audio/room_loop.mp3',
-  hallway_monitor: '/assets/cases/case-001/audio/hallway_loop.mp3',
-  pantry_bin: '/assets/cases/case-001/audio/pantry_loop.mp3',
+const AMBIENCE_FILES: Record<string, string> = {
+  review_room: 'room_loop.mp3',
+  hallway_monitor: 'hallway_loop.mp3',
+  pantry_bin: 'pantry_loop.mp3',
 };
-const UI_CLICK_AUDIO = '/assets/cases/case-001/audio/ui-click.mp3';
-const CLUE_AUDIO = '/assets/cases/case-001/audio/clue-discovered.mp3';
-const CONTRADICTION_AUDIO = '/assets/cases/case-001/audio/contradiction-hit.mp3';
-const CONFRONT_SUCCESS_AUDIO = '/assets/cases/case-001/audio/confrontation-success.mp3';
 
 export class StageOneApp {
   private readonly root: HTMLElement;
@@ -146,7 +143,8 @@ export class StageOneApp {
   }
 
   private syncAmbienceForScene(sceneId: string): void {
-    const track = AMBIENCE_TRACKS[sceneId];
+    const file = AMBIENCE_FILES[sceneId];
+    const track = file ? getCaseAssetPath(this.state.caseId, 'audio', file) : '';
     if (!track || this.ambienceSceneId === sceneId) return;
 
     const next = new Audio(track);
@@ -196,13 +194,13 @@ export class StageOneApp {
       .filter((v): v is string => Boolean(v));
     return Promise.all([
       this.preloadImage(this.getSceneBackground(scene.id, scene.background)),
-      this.preloadImage('/assets/cases/case-001/scenes/review_room.jpg'),
-      this.preloadImage('/assets/cases/case-001/scenes/hallway_monitor.jpg'),
-      this.preloadImage('/assets/cases/case-001/scenes/pantry_bin.jpg'),
-      this.preloadImage('/assets/cases/case-001/characters/zhoulan-avatar.png'),
-      this.preloadImage('/assets/cases/case-001/characters/zhoulan-neutral.png'),
-      this.preloadImage('/assets/cases/case-001/characters/chenxu-avatar.png'),
-      this.preloadImage('/assets/cases/case-001/characters/chenxu-neutral.png'),
+      this.preloadImage(getCaseAssetPath(caseConfig.id, 'scenes', 'review_room.jpg')),
+      this.preloadImage(getCaseAssetPath(caseConfig.id, 'scenes', 'hallway_monitor.jpg')),
+      this.preloadImage(getCaseAssetPath(caseConfig.id, 'scenes', 'pantry_bin.jpg')),
+      this.preloadImage(getCaseAssetPath(caseConfig.id, 'characters', 'zhoulan-avatar.png')),
+      this.preloadImage(getCaseAssetPath(caseConfig.id, 'characters', 'zhoulan-neutral.png')),
+      this.preloadImage(getCaseAssetPath(caseConfig.id, 'characters', 'chenxu-avatar.png')),
+      this.preloadImage(getCaseAssetPath(caseConfig.id, 'characters', 'chenxu-neutral.png')),
       this.preloadImage('/assets/ui/icons/icon-hotspot-target-marker.png'),
       this.preloadImage('/assets/ui/icons/new-dot.svg'),
       ...chars.map((src) => this.preloadImage(src)),
@@ -1046,7 +1044,7 @@ export class StageOneApp {
           ? '关键时段被人为制造了视线盲区。'
           : '这份物证足够推动下一轮施压。';
     const actionLabel = clue?.id === 'clue-doorlog-0728' ? '记录线索' : clue?.id === 'clue-shred-label' ? '标记异常' : '收入证据';
-    return `<section class="overlay"><div class="inspect-card"><p class="inspect-kicker">发现证据</p><div class="inspect-hero">${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='/assets/cases/case-001/scenes/review_room.jpg'" />` : ''}</div><h3>${clue?.title ?? '暂无新增线索'}</h3><p class="inspect-judgement">${impactLine}</p><button data-close-overlay="true" class="primary-btn">${actionLabel}</button></div></section>`;
+    return `<section class="overlay"><div class="inspect-card"><p class="inspect-kicker">发现证据</p><div class="inspect-hero">${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='${FALLBACK_PATHS.scene}'" />` : ''}</div><h3>${clue?.title ?? '暂无新增线索'}</h3><p class="inspect-judgement">${impactLine}</p><button data-close-overlay="true" class="primary-btn">${actionLabel}</button></div></section>`;
   }
 
   private renderHintOverlay(): string {
@@ -1131,7 +1129,7 @@ export class StageOneApp {
     const currentChar = caseConfig.characters.find((c) => c.id === (this.state.currentSuspectId ?? caseConfig.confrontation.target));
 
     const emotion = round?.enterEmotion ?? 'neutral';
-    const portraitSrc = currentChar?.emotionPortraits?.[emotion] ?? currentChar?.portrait ?? '/assets/cases/case-001/characters/portrait-fallback.png';
+    const portraitSrc = currentChar?.emotionPortraits?.[emotion] ?? currentChar?.portrait ?? FALLBACK_PATHS.portrait;
 
     // Suspect tabs (shown even for single suspect to establish the UI affordance)
     const suspectTabsHtml = suspects.length > 0
@@ -1340,7 +1338,7 @@ export class StageOneApp {
     return `<div class="screen-scrollable">
       ${this.renderSceneTabs()}
       <div class="investigation-layout">
-        <div class="investigation-stage" style="background-image:url('${background}'), url('/assets/cases/case-001/scenes/review_room.jpg')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>
+        <div class="investigation-stage" style="background-image:url('${background}'), url('${FALLBACK_PATHS.scene}')"><div class="hotspot-layer">${this.renderHotspots()}</div></div>
         <aside class="pressure-panel">
           <section><h3>调查判断</h3><p>${this.state.objective}</p></section>
           <section class="clue-cards-section"><h3>证据库</h3>${this.renderClueCards()}</section>
@@ -1359,7 +1357,7 @@ export class StageOneApp {
   private renderArchiveBody(): string {
     const canContinue = this.state.screen !== 'archive' || this.state.inventory.length > 0 || this.state.testimonies.length > 0;
     return `
-      <section class="archive-shell" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg'), url('/assets/cases/case-001/scenes/review_room.jpg')">
+      <section class="archive-shell" style="background-image:url('${getCaseAssetPath(this.state.caseId, 'scenes', 'archive_cover.jpg')}'), url('${FALLBACK_PATHS.scene}')">
         <header class="archive-header">
           <div>
             <h1>档案室 / CASE ARCHIVE</h1>
@@ -1369,7 +1367,7 @@ export class StageOneApp {
         </header>
         <section class="archive-grid">
           <article class="case-card case-card-main">
-            <div class="case-card-cover" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg')"></div>
+            <div class="case-card-cover" style="background-image:url('${getCaseAssetPath(this.state.caseId, 'scenes', 'archive_cover.jpg')}')"></div>
             <div class="case-card-content">
               <h2>08:17 的空档</h2>
               <p class="case-tags">企业调查 / 资料失窃</p>
@@ -1422,7 +1420,7 @@ export class StageOneApp {
                 <p>先确认谁在会前接触过结论页。</p>
               </section>
             </article>
-            <aside class="briefing-visual" style="background-image:url('/assets/cases/case-001/scenes/archive_cover.jpg'), url('/assets/cases/case-001/scenes/review_room.jpg')">
+            <aside class="briefing-visual" style="background-image:url('${getCaseAssetPath(this.state.caseId, 'scenes', 'archive_cover.jpg')}'), url('${FALLBACK_PATHS.scene}')">
               <div class="briefing-visual-overlay">
                 <p>CASE-001 BRIEFING</p>
               </div>
@@ -1500,8 +1498,8 @@ export class StageOneApp {
   }
 
   private bindEvents(): void {
-    this.root.querySelectorAll<HTMLButtonElement>('[data-screen]').forEach((button) => button.addEventListener('click', () => { const s = button.dataset.screen as Screen | undefined; if (s) { this.playSfx(UI_CLICK_AUDIO, 0.26); this.setScreen(s); } }));
-    this.root.querySelectorAll<HTMLButtonElement>('[data-hotspot-id]').forEach((button) => { button.addEventListener('click', () => { if (!button.dataset.hotspotId) return; this.playSfx(UI_CLICK_AUDIO, 0.3); const discovered = this.investigateHotspot(button.dataset.hotspotId); if (discovered) this.playSfx(CLUE_AUDIO, 0.42); }); });
+    this.root.querySelectorAll<HTMLButtonElement>('[data-screen]').forEach((button) => button.addEventListener('click', () => { const s = button.dataset.screen as Screen | undefined; if (s) { this.playSfx(getCaseAssetPath(this.state.caseId, 'audio', 'ui-click.mp3'), 0.26); this.setScreen(s); } }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-hotspot-id]').forEach((button) => { button.addEventListener('click', () => { if (!button.dataset.hotspotId) return; this.playSfx(getCaseAssetPath(this.state.caseId, 'audio', 'ui-click.mp3'), 0.3); const discovered = this.investigateHotspot(button.dataset.hotspotId); if (discovered) this.playSfx(getCaseAssetPath(this.state.caseId, 'audio', 'clue-discovered.mp3'), 0.42); }); });
     this.root.querySelectorAll<HTMLButtonElement>('[data-character-id]').forEach((button) => button.addEventListener('click', () => button.dataset.characterId && this.openDialogue(button.dataset.characterId)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-dialogue-to]').forEach((button) => button.addEventListener('click', () => button.dataset.dialogueTo && this.jumpDialogueNode(button.dataset.dialogueTo)));
     const dialogueNext = this.root.querySelector<HTMLButtonElement>('[data-dialogue-next="true"]');
@@ -1510,10 +1508,10 @@ export class StageOneApp {
     if (close) close.addEventListener('click', () => this.closeOverlay());
     const next = this.root.querySelector<HTMLButtonElement>('[data-next="true"]');
     if (next) next.addEventListener('click', () => this.goNextScreen());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(UI_CLICK_AUDIO, 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(getCaseAssetPath(this.state.caseId, 'audio', 'ui-click.mp3'), 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
     const startConf = this.root.querySelector<HTMLButtonElement>('[data-start-confrontation="true"]');
     if (startConf) startConf.addEventListener('click', () => this.startConfrontation());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const caseConf = loadCaseConfig(this.state.caseId); const outcome = this.resolveOutcome(evidenceId, this.state.confrontation.selectedSentenceId ?? '', caseConf); this.playSfx(outcome === 'canonical' ? CONFRONT_SUCCESS_AUDIO : CONTRADICTION_AUDIO, outcome === 'canonical' ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const caseConf = loadCaseConfig(this.state.caseId); const outcome = this.resolveOutcome(evidenceId, this.state.confrontation.selectedSentenceId ?? '', caseConf); this.playSfx(outcome === 'canonical' ? getCaseAssetPath(this.state.caseId, 'audio', 'confrontation-success.mp3') : getCaseAssetPath(this.state.caseId, 'audio', 'contradiction-hit.mp3'), outcome === 'canonical' ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-sentence]').forEach((button) => button.addEventListener('click', () => button.dataset.selectSentence && this.selectSentence(button.dataset.selectSentence)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-select-timeline-clue]').forEach((button) => button.addEventListener('click', () => button.dataset.selectTimelineClue && this.selectTimelineClue(button.dataset.selectTimelineClue)));
     this.root.querySelectorAll<HTMLButtonElement>('[data-place-slot]').forEach((button) => button.addEventListener('click', () => { const slot = loadCaseConfig(this.state.caseId).timelineSlots.find((s) => s.id === button.dataset.placeSlot); if (slot) this.placeTimeline(slot); }));
