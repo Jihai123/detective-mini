@@ -188,7 +188,29 @@ case-001 实战 drawCount 永远=0,公式退化等价旧 `wonCount > lostCount`,
 - JS gzip 19.26 → 21.95 (+2.69 kB)
 - CSS gzip 6.00 → 6.61 (+0.61 kB)
 - T2.6 累计 +3.30 kB,远低于 +7 kB 预算
+  
+### ✅ T2.7-A case 导入架构基础设施(3 文件)
 
+**新建 src/cases/case-paths.ts(13 行)**
+- getCaseAssetPath(caseId, category, filename) → /assets/cases/{id}/{cat}/{file}
+- FALLBACK_PATHS.scene / portrait 全局兜底常量(暂指向 case-001)
+
+**扩展 src/stage1/caseLoader.ts**
+- 新增空 JSON_CASE_REGISTRY: Record<string, StageCaseConfig> = {}
+- loadCaseConfig 优先查 JSON 表,空时 fallback 走 TS 路径
+- T2.7-B 时填 case-001 进 JSON_CASE_REGISTRY,完成迁移
+
+**改 src/stage1/app.ts(21 处路径替换)**
+- 删除 7 条模块级音频常量
+- syncAmbienceForScene / preloadCriticalAssets / bindEvents SFX 6 处 / 
+  HTML 模板 8 处全部改用 getCaseAssetPath(this.state.caseId, ...)
+- grep /assets/cases/case-001/ app.ts → 零输出
+- FALLBACK_PATHS 用于 onerror 兜底
+
+**Bundle**:JS gzip 21.95 → 22.30(+0.35 kB),CSS 不变 6.61
+
+**T2.7-A 跳过真人实测直接合 main**(用户决策),T2.7-B 实测时承担合并归因风险,
+Network 404 检查作为强制补偿项。
 ---
 
 ## 5. 核心架构真相
@@ -245,7 +267,12 @@ case-001 实战 drawCount 永远=0,公式退化等价旧 `wonCount > lostCount`,
 - resolveEnding 按 endingMatrix 规则匹配 → endingKey → endings[endingKey] 渲染
 - case-001 endingMatrix 仅 success rule + failure fallback
 - emotional clue 通过 endingMatrix.rules 的 emotionalState 条件影响结局变体
-
+  
+**素材路径**
+- 全部走 getCaseAssetPath(caseId, category, filename) helper
+- caseId 从 this.state.caseId 取(StageOneApp 已接收)
+- FALLBACK_PATHS.scene / portrait 全局兜底,onerror 触发
+- T2.7-A 后 app.ts 内零硬编码 /assets/cases/case-001/ 路径
 ---
 
 ## 6. KNOWN_ISSUES 清单
@@ -272,7 +299,8 @@ case-001 实战 drawCount 永远=0,公式退化等价旧 `wonCount > lostCount`,
 - dialogueState 字段在 loadStageSave 未校验
 - preResults 计算用 counterEvidenceId 是 T1 遗留双轨判定,Bug 1 修复后已是死代码,T3 清理(已加 TODO)
 - handleConfrontationEnd 失败分支已完整重置;架构上仍存在"未来不经 startConfrontation 入口会出 bug"的隐患(目前不存在该入口,记录待观察)
-
+- T2.7-A 21 处路径替换无真人实测,T2.7-B 实测时若出现素材问题需双层归因
+  (T2.7-A 拼接 bug vs T2.7-B JSON 翻译 bug)
 ---
 
 ## 7. 改造路线剩余(case 难度驱动)
@@ -415,7 +443,30 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
 - **Bundle 对比基线必须明确(T2.6-B 关键)**:T2.6-B 报告中 Code 用 T2.5 之前 main(14.05 kB)作为对比基线,把 T2.5/T2.5.1 累积算到 T2.6 头上,误判超预算 0.9 kB。实际以 T2.5.1 合 main 后为基线,T2.6 累计 JS +2.69 kB 远低于 +7 kB 预算。后续验收 bundle 时,Code 必须明确说明对比基线是哪个 commit。
 - **Stream timeout 防御**:T2.6-B app.ts 大重写在单次响应中触发 stream idle timeout。重型任务必须拆 3 个内部 commit,每段 LLM 响应短。这是工程性纪律而非偶发故障。
 - **Code 主动暴露边界问题的协作形态**:T2.6-B 实施前 Code 主动问"准备指认 vs handleConfrontationEnd 关系"和"draw 是否计入 majority"。这种"问完再动"避免两个细微但严重的体感 bug。鼓励 Code 持续这种协作形态。
+  
+### T2.7-A 决策(盘点暴露隐性遗留 → 升级合并 + 实测策略调整)
 
+**盘点暴露的关键事实**
+- case-001 data.ts 序列化 ~4.8 kB gzip,远低于 8 kB 阈值
+- app.ts 内 21 处硬编码 /assets/cases/case-001/ 路径(preload 8 / 音频 7 / fallback 3 / archive intro 3)
+- 现有 validateCaseConfig 已覆盖双格式 + discriminated union,无需新加验证层
+- case-001 path 在 data.ts 内已统一规则,但 app.ts 调用方写死 case-001
+
+**最终决策**
+- A:静态 import(JSON < 8 kB 触发条件分支)
+- B:复用 validateCaseConfig,不引新验证层
+- C:JSON 写文件名 + getCaseAssetPath helper(新增 case-paths.ts)+ app.ts 21 处替换
+  并入 T2.7-A(原 5 文件红线妥协,合并避免推坑到 T2.8)
+- D:T2.7-B 时 case-001 data.ts 完全删除
+- E:case-level 独立
+- F:不预留 T13 接口
+- G:case-002 占位取消(T2.8 直接建真数据)
+
+**T2.7-A 实测策略**
+- 用户决策跳过真人实测直接合 main
+- T2.7-B 实测承担两层归因风险,Network 404 检查作为强制补偿项
+- 此决策记录为后续 T2 阶段验收强度的实例:验收强度可由用户按风险偏好调整,
+  纪律是默认值不是绝对值
 ---
 
 ## 9. 下一步:T2.7 case 导入架构
