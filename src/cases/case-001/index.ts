@@ -1,5 +1,6 @@
 import type { CaseDefinition } from '../types';
-import { case001Config } from './data';
+import type { StageCaseConfig } from '../../stage1/types';
+import case001Data from './data.json';
 
 export const case001: CaseDefinition = {
   meta: {
@@ -10,5 +11,5 @@ export const case001: CaseDefinition = {
     order: 1,
     unlocked: true,
   },
-  config: case001Config,
+  config: case001Data as unknown as StageCaseConfig,
 };
