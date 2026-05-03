@@ -1,5 +1,5 @@
 # PROJECT_STATE.md
-> 项目交接状态文档 | 最后更新:T2.6 (机制铺垫 A+B) 完成,已合并 main
+> 项目交接状态文档 | 最后更新:T2.7-B(case-001 数据 JSON 化)完成,已合并 main
 
 ---
 
@@ -7,7 +7,7 @@
 
 新对话开场白模板:
 
-"我在做侦探推理游戏 detective-mini。T0 + T1 + T1.5 + T2 + T2.5 + T2.5.1 + T2.6 已完成并合并 main。下面是完整项目状态文档,请先读完复述核心信息,然后我给你下一个任务。"
+"我在做侦探推理游戏 detective-mini。T0 + T1 + T1.5 + T2 + T2.5 + T2.5.1 + T2.6 + T2.7-A + T2.7-B 已完成并合并 main。下面是完整项目状态文档,请先读完复述核心信息,然后我给你下一个任务。"
 
 ---
 
@@ -17,8 +17,8 @@
 - **类型**:浏览器端侦探推理游戏
 - **技术栈**:TypeScript + Vite,原生 innerHTML 渲染,无框架
 - **主入口**:src/main.ts → CaseSelector → src/stage1/app.ts(StageOneApp class)
-- **当前分支**:main(T2.6 已合)
-- **Bundle**:JS gzip ~21.95 kB,CSS gzip ~6.61 kB
+- **当前分支**:main(T2.7-B 已合)
+- **Bundle**:JS gzip ~22.32 kB(基线 22.30 +0.02),CSS gzip ~6.61 kB
 
 ---
 
@@ -211,6 +211,37 @@ case-001 实战 drawCount 永远=0,公式退化等价旧 `wonCount > lostCount`,
 
 **T2.7-A 跳过真人实测直接合 main**(用户决策),T2.7-B 实测时承担合并归因风险,
 Network 404 检查作为强制补偿项。
+
+### ✅ T2.7-B case-001 数据 JSON 化(4 文件)
+
+**新建 src/cases/case-001/data.json(22,183 bytes / gzip 5,178)**
+- 从 data.ts 机械 1:1 翻译,JSON.stringify 严格相等验证通过
+- ConfrontationConfig 双格式(rounds + suspects)双保留
+- TestimonySentenceResponses 等零填充字段省略(JSON 中省略即 undefined)
+- 16 处素材路径字段保留完整路径字符串(决策 D4,T2.7.1 整理)
+
+**改造 src/stage1/caseLoader.ts**
+- `import case001Data from '../cases/case-001/data.json'`
+- `JSON_CASE_REGISTRY['case-001'] = case001Data as unknown as StageCaseConfig`
+- module-load 时一次性跑 `validateCaseConfig`(启动期暴露 schema 错误)
+- `loadCaseConfig` API 签名同步不变
+
+**改造 src/cases/case-001/index.ts**
+- 删除对 `./data`(data.ts)的 import
+- 改为直接 `import case001Data from './data.json'`,避免 caseLoader 循环依赖
+- `config: case001Data as unknown as StageCaseConfig`
+
+**删除 src/cases/case-001/data.ts**
+- 全仓库零 `import … from './data'` 残留(grep 已验证)
+
+**Bundle**:JS gzip 22.30 → 22.32(+0.02 kB)/ CSS 6.61(±0);data.json 内联 JS bundle,dist/ 无独立 JSON emit
+
+**真人实测 6 路径全过**:happy path / misread 扣容错 / irrelevant 不扣容错 /
+全 misread → failure 屏 / 硬刷经 selector 中转后状态恢复 / 跨 case 保留 /
+F12 Network 无 4xx / Console 无 error。result 屏文本逐字与 T2.6-A 锁定值一致:
+- 标题:案件归档
+- body:你已锁定真相核心:周岚在会前拆封并转移结论页。
+
 ---
 
 ## 5. 核心架构真相
@@ -224,6 +255,7 @@ Network 404 检查作为强制补偿项。
 - ✅ 多嫌疑人 schema + runtime(T2.6)
 - ✅ unlock / layer runtime(T2.6,T6 字段终于接入)
 - ✅ 数据驱动 endingMatrix(T2.6)
+- ✅ case 数据 JSON 外置(T2.7-B,case-001 已迁,case-002 起直接 JSON)
 - ❌ archive / intro 文案硬编码(T4 修)
 - ❌ deduction submission 选项卡片化但字段名硬编码(T3 修)
 - ❌ result 页 hardcoded 单文本(T2.6-A 显式锁定 = T3 时分离 success/failure 文案)
@@ -273,6 +305,8 @@ Network 404 检查作为强制补偿项。
 - caseId 从 this.state.caseId 取(StageOneApp 已接收)
 - FALLBACK_PATHS.scene / portrait 全局兜底,onerror 触发
 - T2.7-A 后 app.ts 内零硬编码 /assets/cases/case-001/ 路径
+- case 数据 JSON 化后,16 处路径字段在 data.json 中仍是完整路径字符串;
+  消费方(12 处)直接读取该字段;T2.7-A helper 在 data 字段层面未落地;T2.7.1 处理
 ---
 
 ## 6. KNOWN_ISSUES 清单
@@ -293,6 +327,8 @@ Network 404 检查作为强制补偿项。
   case-001 不补提示(决策:tutorial 简单接受)。
 
 ### 🟢 P2 技术债
+- case-001 data.json 中 16 处路径字段为完整路径字符串(非约定中"文件名 + helper 拼接"形态);
+  12 处消费方直接读字段值;`getSceneBackground(_sceneId, fallback)` 的 `sceneId` 参数被忽略。T2.7.1 处理。
 - getCharacterVisual 函数已退化为透传
 - emotion 字段在 dialogue overlay 未生效(T8 处理)
 - hintCount / wrongSubmissionCount 累加但未评分使用
@@ -317,8 +353,10 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
 ### case-002 整体路径(A 方案 4 阶段)
 
 - ✅ **T2.6** 机制铺垫(A 数据层 + B 运行时层)
-- ⏳ **T2.7** case 导入架构(JSON + 素材命名约定自动加载,case-001 回归)
-- ⏳ **T2.8** case-002 数据化(三份剧本文档 → TS/JSON 数据)
+- ✅ **T2.7-A** case 导入架构基础设施(case-paths helper + JSON_CASE_REGISTRY 骨架)
+- ✅ **T2.7-B** case-001 数据 JSON 化
+- ⏳ **T2.7.1** 路径字段文件名化 + 消费方 helper 化 + getSceneBackground 修复 + case-asset-conventions 文档(T2.7-B 延期)
+- ⏳ **T2.8** case-002 数据化(三份剧本文档 → JSON 数据,T2.7.1 收尾后启动)
 - ⏳ **T2.9** 抛光(T2.5.2 音乐 bug 现场复现 + dialogue 滚动复核 + 立绘情绪切换 + 多结局判定细节)
 
 ### P0 级(核心玩法,normal 难度门槛)
@@ -444,6 +482,21 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
 - **Stream timeout 防御**:T2.6-B app.ts 大重写在单次响应中触发 stream idle timeout。重型任务必须拆 3 个内部 commit,每段 LLM 响应短。这是工程性纪律而非偶发故障。
 - **Code 主动暴露边界问题的协作形态**:T2.6-B 实施前 Code 主动问"准备指认 vs handleConfrontationEnd 关系"和"draw 是否计入 majority"。这种"问完再动"避免两个细微但严重的体感 bug。鼓励 Code 持续这种协作形态。
   
+### T2.7-B 决策
+
+**已落地**
+- 机械 1:1 翻译,零业务修改:`JSON.stringify` 严格相等作为"行为不变"实证
+- `ConfrontationConfig` 双格式 JSON 化时双保留(rounds + suspects 同存)
+- 零填充字段 JSON 中省略,反序列化后 `undefined`,`validateCaseConfig` 已 support optional
+- 路径字段策略 D4:维度 3 盘点暴露 16 字段仍完整路径,12 处消费方仍直接读;T2.7-B 严守"纯数据搬迁",路径文件名化拆为 T2.7.1
+- 静态 import + module-load 一次性 `validateCaseConfig`:启动期暴露 schema 错误
+- JSON 必须放 `src/`(静态 import 限制),不是 `public/`(动态 fetch 才用 public/)
+- `docs/case-asset-conventions.md` 推迟到 T2.7.1 后写(约定不能与代码不一致)
+
+**T2.7-B 跨阶段经验**
+- 微盘点暴露 T2.7-A 决策 C 在 data 字段层未落地:T2.7-A 只在 app.ts 的 21 处硬编码路径上落地了 helper,data 字段未触及。"决策 C 落地不完整"被 T2.7-A 跳过实测掩盖了。T2.7-B 真人实测前的微盘点把这个隐患揪出来,避免归因复杂化。
+- "字段名假设"风险:T2.7-B 阶段二指令里写 `imagePath` / `portraits`,Code 主动纠正实际字段是 `image` / `portrait` / `emotionPortraits`。架构指令在不看实际源代码字段名的情况下易写错假设,Code 主动暴露字段差异的协作纪律必须延续。
+
 ### T2.7-A 决策(盘点暴露隐性遗留 → 升级合并 + 实测策略调整)
 
 **盘点暴露的关键事实**
@@ -469,12 +522,16 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
   纪律是默认值不是绝对值
 ---
 
-## 9. 下一步:T2.7 case 导入架构
+## 9. 下一步
 
-### 决策记录
+- **T2.7.1**:路径字段文件名化 + 12 处消费方改用 `getCaseAssetPath` 拼路径 + 修复 `getSceneBackground` 假参数 + `docs/case-asset-conventions.md` 完整命名约定文档
+- T2.7.1 收尾后启动 **T2.8**:case-002 数据化(三份剧本文档 → JSON 数据,从一开始就用文件名约定)
+
+### 参考(T2.7 原始决策)
 - T2.6 + T2.6 hotfix 已合 main,case-002 机制地基全部到位
-- 下一步 T2.7:把 case 数据从 TS 文件外置为 JSON,建立素材命名约定让新 case 加载零代码改动
-- T2.7 完成后 T2.8 把 case-002 三份剧本文档塞入 JSON
+- T2.7-A 决策 A:静态 import(JSON < 8 kB);T2.7-B:case-001 完成迁移
+- T2.7.1:路径字段层文件名化(T2.7-B 延期)
+- T2.8 直接建 case-002 真数据,从一开始就用 JSON + 文件名约定
 
 ### case-001 现网素材结构(T2.7 必须兼容)
 
