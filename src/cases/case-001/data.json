@@ -17,7 +17,7 @@
       "description": "封签边缘有新拉扯痕迹，封套并非\"一直密封\"。",
       "source": "review_room / desk",
       "isKey": true,
-      "image": "/assets/cases/case-001/clues/clue-envelope-opened.jpg",
+      "image": "clue-envelope-opened.jpg",
       "role": "confrontation",
       "interpretations": {
         "canonical": {
@@ -46,7 +46,7 @@
       "description": "评审室门终端记录显示 07:28 有一次进入。",
       "source": "review_room / door_terminal",
       "isKey": true,
-      "image": "/assets/cases/case-001/clues/clue-doorlog-0728.jpg",
+      "image": "clue-doorlog-0728.jpg",
       "role": "confrontation",
       "interpretations": {
         "canonical": {
@@ -75,7 +75,7 @@
       "description": "走廊监控在 07:31 附近存在几分钟数据缺口。",
       "source": "hallway_monitor / monitor_node",
       "isKey": true,
-      "image": "/assets/cases/case-001/clues/clue-camera-gap-0731.jpg",
+      "image": "clue-camera-gap-0731.jpg",
       "role": "confrontation",
       "interpretations": {
         "canonical": {
@@ -100,7 +100,7 @@
       "description": "茶水间回收桶发现被撕碎的评审标签条。",
       "source": "pantry_bin / recycle_bin",
       "isKey": true,
-      "image": "/assets/cases/case-001/clues/clue-shred-label.jpg",
+      "image": "clue-shred-label.jpg",
       "role": "confrontation",
       "interpretations": {
         "canonical": {
@@ -155,12 +155,12 @@
       "id": "zhoulan",
       "name": "周岚",
       "role": "项目行政负责人",
-      "avatar": "/assets/cases/case-001/characters/zhoulan-avatar.png",
-      "portrait": "/assets/cases/case-001/characters/zhoulan-neutral.png",
+      "avatar": "zhoulan-avatar.png",
+      "portrait": "zhoulan-neutral.png",
       "emotionPortraits": {
-        "neutral": "/assets/cases/case-001/characters/zhoulan-neutral.png",
-        "defensive": "/assets/cases/case-001/characters/zhoulan-defensive.png",
-        "collapse": "/assets/cases/case-001/characters/zhoulan-collapse.png"
+        "neutral": "zhoulan-neutral.png",
+        "defensive": "zhoulan-defensive.png",
+        "collapse": "zhoulan-collapse.png"
       },
       "dialogueEntryNodeId": "node-zhoulan-entry"
     },
@@ -168,11 +168,11 @@
       "id": "chenxu",
       "name": "陈序",
       "role": "演示工程师",
-      "avatar": "/assets/cases/case-001/characters/chenxu-avatar.png",
-      "portrait": "/assets/cases/case-001/characters/chenxu-neutral.png",
+      "avatar": "chenxu-avatar.png",
+      "portrait": "chenxu-neutral.png",
       "emotionPortraits": {
-        "neutral": "/assets/cases/case-001/characters/chenxu-neutral.png",
-        "serious": "/assets/cases/case-001/characters/chenxu-serious.png"
+        "neutral": "chenxu-neutral.png",
+        "serious": "chenxu-serious.png"
       },
       "dialogueEntryNodeId": "node-chenxu-entry"
     }
@@ -298,7 +298,7 @@
     {
       "id": "review_room",
       "label": "评审室",
-      "background": "/assets/cases/case-001/scenes/review_room.jpg",
+      "background": "review_room.jpg",
       "characterIds": [
         "zhoulan",
         "chenxu"
@@ -357,7 +357,7 @@
     {
       "id": "hallway_monitor",
       "label": "走廊监控点",
-      "background": "/assets/cases/case-001/scenes/hallway_monitor.jpg",
+      "background": "hallway_monitor.jpg",
       "characterIds": [
         "chenxu"
       ],
@@ -397,7 +397,7 @@
     {
       "id": "pantry_bin",
       "label": "茶水间回收区",
-      "background": "/assets/cases/case-001/scenes/pantry_bin.jpg",
+      "background": "pantry_bin.jpg",
       "characterIds": [
         "zhoulan"
       ],

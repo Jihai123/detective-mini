@@ -211,8 +211,8 @@ export class StageOneApp {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const urls = [
       ...caseConfig.scenes.map((s) => this.getSceneBackground(s.id, s.background)),
-      ...caseConfig.characters.map((c) => this.getCharacterVisual(c)?.portrait ?? c.portrait),
-      ...caseConfig.clues.map((c) => c.image).filter((v): v is string => Boolean(v)),
+      ...caseConfig.characters.map((c) => this.getCharacterVisual(c)?.portrait ?? getCaseAssetPath(this.state.caseId, 'characters', c.portrait)),
+      ...caseConfig.clues.filter((c) => Boolean(c.image)).map((c) => getCaseAssetPath(this.state.caseId, 'clues', c.image!)),
     ];
     setTimeout(() => {
       urls.forEach((url) => void this.preloadImage(url));
@@ -1010,13 +1010,16 @@ export class StageOneApp {
     return { hasNew, label: hasNew ? '可追问 / 新内容' : '已读' };
   }
 
-  private getSceneBackground(_sceneId: string, fallback: string): string {
-    return fallback;
+  private getSceneBackground(_sceneId: string, filename: string): string {
+    return getCaseAssetPath(this.state.caseId, 'scenes', filename);
   }
 
   private getCharacterVisual(character?: CharacterConfig): { avatar: string; portrait: string } | null {
     if (!character) return null;
-    return { avatar: character.avatar, portrait: character.portrait };
+    return {
+      avatar: getCaseAssetPath(this.state.caseId, 'characters', character.avatar),
+      portrait: getCaseAssetPath(this.state.caseId, 'characters', character.portrait),
+    };
   }
 
   private renderCharacterCards(): string {
@@ -1028,7 +1031,8 @@ export class StageOneApp {
       .map((character) => {
         const status = this.getCharacterCardStatus(character);
         const visual = this.getCharacterVisual(character);
-        return `<button class="character-card" data-character-id="${character.id}"><img src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /><div><strong>${character.name}</strong><p>点击进入追问</p><span class="card-status ${status.hasNew ? 'has-new' : ''}"><img src="/assets/ui/icons/new-dot.svg" alt="s" />${status.label}</span></div></button>`;
+        const avatarSrc = visual?.avatar ?? getCaseAssetPath(this.state.caseId, 'characters', character.avatar);
+        return `<button class="character-card" data-character-id="${character.id}"><img src="${avatarSrc}" alt="${character.name}" onerror="this.src='${FALLBACK_PATHS.portrait}'" /><div><strong>${character.name}</strong><p>点击进入追问</p><span class="card-status ${status.hasNew ? 'has-new' : ''}"><img src="/assets/ui/icons/new-dot.svg" alt="s" />${status.label}</span></div></button>`;
       })
       .join('')}</section></section>`;
   }
@@ -1044,7 +1048,7 @@ export class StageOneApp {
           ? '关键时段被人为制造了视线盲区。'
           : '这份物证足够推动下一轮施压。';
     const actionLabel = clue?.id === 'clue-doorlog-0728' ? '记录线索' : clue?.id === 'clue-shred-label' ? '标记异常' : '收入证据';
-    return `<section class="overlay"><div class="inspect-card"><p class="inspect-kicker">发现证据</p><div class="inspect-hero">${clue?.image ? `<img class="inspect-image" src="${clue.image}" alt="${clue.title}" onerror="this.src='${FALLBACK_PATHS.scene}'" />` : ''}</div><h3>${clue?.title ?? '暂无新增线索'}</h3><p class="inspect-judgement">${impactLine}</p><button data-close-overlay="true" class="primary-btn">${actionLabel}</button></div></section>`;
+    return `<section class="overlay"><div class="inspect-card"><p class="inspect-kicker">发现证据</p><div class="inspect-hero">${clue?.image ? `<img class="inspect-image" src="${getCaseAssetPath(this.state.caseId, 'clues', clue.image)}" alt="${clue.title}" onerror="this.src='${FALLBACK_PATHS.scene}'" />` : ''}</div><h3>${clue?.title ?? '暂无新增线索'}</h3><p class="inspect-judgement">${impactLine}</p><button data-close-overlay="true" class="primary-btn">${actionLabel}</button></div></section>`;
   }
 
   private renderHintOverlay(): string {
@@ -1115,7 +1119,7 @@ export class StageOneApp {
     const line = node.lines[this.state.dialogueState.lineIndex] ?? '';
     const end = this.state.dialogueState.lineIndex >= node.lines.length - 1;
     const visual = this.getCharacterVisual(character);
-    return `<section class="overlay dialogue-overlay"><div class="dialogue-card interrogation-scene"><aside class="dialogue-actor"><img class="portrait" src="${visual?.portrait ?? character.portrait}" alt="${character.name}" onerror="this.src='${character.portrait}'" /><img class="avatar-badge" src="${visual?.avatar ?? character.avatar}" alt="${character.name}" onerror="this.src='${character.avatar}'" /></aside><div class="dialogue-main"><header><div><h3>${character.name}</h3><p>${character.role}</p></div><button data-close-overlay="true" class="ghost-btn subtle-btn">结束对话</button></header><article>${line}</article><div class="dialogue-controls">${end ? '<span>选择追问动作</span>' : '<button data-dialogue-next="true" class="ghost-btn">继续施压</button>'}</div>${end ? `<div class="dialogue-options">${node.options.slice(0, 3).map((o) => this.renderOption(o)).join('')}</div>` : ''}</div></div></section>`;
+    return `<section class="overlay dialogue-overlay"><div class="dialogue-card interrogation-scene"><aside class="dialogue-actor"><img class="portrait" src="${visual?.portrait ?? getCaseAssetPath(this.state.caseId, 'characters', character.portrait)}" alt="${character.name}" onerror="this.src='${FALLBACK_PATHS.portrait}'" /><img class="avatar-badge" src="${visual?.avatar ?? getCaseAssetPath(this.state.caseId, 'characters', character.avatar)}" alt="${character.name}" onerror="this.src='${FALLBACK_PATHS.portrait}'" /></aside><div class="dialogue-main"><header><div><h3>${character.name}</h3><p>${character.role}</p></div><button data-close-overlay="true" class="ghost-btn subtle-btn">结束对话</button></header><article>${line}</article><div class="dialogue-controls">${end ? '<span>选择追问动作</span>' : '<button data-dialogue-next="true" class="ghost-btn">继续施压</button>'}</div>${end ? `<div class="dialogue-options">${node.options.slice(0, 3).map((o) => this.renderOption(o)).join('')}</div>` : ''}</div></div></section>`;
   }
 
   private renderConfrontationBody(): string {
@@ -1129,7 +1133,9 @@ export class StageOneApp {
     const currentChar = caseConfig.characters.find((c) => c.id === (this.state.currentSuspectId ?? caseConfig.confrontation.target));
 
     const emotion = round?.enterEmotion ?? 'neutral';
-    const portraitSrc = currentChar?.emotionPortraits?.[emotion] ?? currentChar?.portrait ?? FALLBACK_PATHS.portrait;
+    const portraitSrc = currentChar
+      ? getCaseAssetPath(this.state.caseId, 'characters', currentChar.emotionPortraits?.[emotion] ?? currentChar.portrait)
+      : FALLBACK_PATHS.portrait;
 
     // Suspect tabs (shown even for single suspect to establish the UI affordance)
     const suspectTabsHtml = suspects.length > 0
