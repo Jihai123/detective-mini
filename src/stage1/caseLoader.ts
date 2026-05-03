@@ -1,8 +1,15 @@
 import { getCaseById } from '../cases';
 import type { ConditionExpr, DialogueNode, HotspotConfig, StageCaseConfig } from './types';
+import case001Data from '../cases/case-001/data.json';
 
-// T2.7-A: JSON-backed case registry (empty; populated in T2.7-B via static imports)
-const JSON_CASE_REGISTRY: Record<string, StageCaseConfig> = {};
+// T2.7-B: JSON-backed case registry; static import triggers module-load registration
+const JSON_CASE_REGISTRY: Record<string, StageCaseConfig> = {
+  'case-001': case001Data as unknown as StageCaseConfig,
+};
+
+for (const config of Object.values(JSON_CASE_REGISTRY)) {
+  validateCaseConfig(config);
+}
 
 function validateCondition(condition: ConditionExpr | undefined, caseId: string, field: string): void {
   if (!condition) return;
