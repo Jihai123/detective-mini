@@ -139,6 +139,8 @@ export type TestimonySentence = {
   contradictable: boolean;
   counterEvidenceId?: string;
   responses?: TestimonySentenceResponses;
+  breakable?: boolean;       // default true; false = canonical hit shows feedback + side-effects but doesn't count as won
+  unlocksSuspect?: string;   // when breakable:false + canonical hit, set confrontationBySuspect[id].unlocked = true
 };
 
 export type ConfrontationRound = {
@@ -203,11 +205,17 @@ export type EndingTextBlock = {
   body: string;
 };
 
-// T2.6: endingMatrix 规则条目 — 满足 when 条件则命中对应 endingKey
+// T2.6: endingMatrix 规则条目 — 满足 when + requires 条件则命中对应 endingKey
 export type EndingMatrixRule = {
   when: {
     minScore?: number;
     submissionCorrect?: boolean;
+    clueInterpretations?: { [clueId: string]: 'canonical' | 'partial' | 'misread' }; // T2.8
+    submissionWrongTarget?: string; // T2.8: match submission.suspect !== correct + === this value
+  };
+  requires?: {
+    totalScore?: string;             // e.g. '>=14'; T2.8 interpretation-based score
+    keyCluesAllCanonical?: string[]; // all listed clue ids must be canonical; T2.8
   };
   endingKey: string;
 };
@@ -279,6 +287,7 @@ export type ConfrontationState = {
   status: 'idle' | 'ongoing' | 'success' | 'allLost';
   lastFeedback: string;
   lostByMisread?: boolean;
+  unlocked: boolean; // T2.8: default true; false = tab locked in UI (🔒 嫌疑人未明)
 };
 
 export type TimelineState = {

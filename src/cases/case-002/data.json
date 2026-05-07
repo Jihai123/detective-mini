@@ -1,0 +1,900 @@
+{
+  "id": "case-002",
+  "title": "08:17 的通话",
+  "summary": "软件部门总监林泽远在公司 7 楼小会议室遇害，死亡时间被精心伪装——真正的凶手制造了一个完美的 20:15 不在场证明。",
+  "timeRange": "20:00 - 21:00",
+  "location": "XX 科技公司 7 楼",
+  "introLines": [
+    "死者林泽远，软件部门总监，昨晚 20 点左右在 7 楼小会议室被杀。",
+    "今早由保洁人员发现，随即报警。",
+    "调查从会议室开始，走廊、办公区与便利店是关键场所。"
+  ],
+  "initialObjective": "进入案发会议室，了解现场情况。",
+  "testimonies": [
+    {
+      "id": "testimony-chenhao-initial",
+      "title": "陈昊：初始陈述",
+      "content": "19:50 被叫进会议室谈绩效，约 20:10 离开。离开时死者好像还在打电话。20:15 在对面便利店买烟，20:17 给妻子打电话。",
+      "sourceCharacterId": "chenhao"
+    },
+    {
+      "id": "testimony-wangkai-initial",
+      "title": "王凯：初始陈述",
+      "content": "19:50 下班去隔壁面馆吃饭。20:03 微信付款，20:10 给朋友点了美团外卖。21:00 前都不在公司。坦承与死者有矛盾，整个部门都知道。",
+      "sourceCharacterId": "wangkai"
+    },
+    {
+      "id": "testimony-liting-timeline",
+      "title": "李婷：时间线",
+      "content": "20:08 刷卡进 7 楼处理人事文件，20:15 前后经过小会议室门口听到说话声，以为在开会没有进去，20:22 离开 7 楼。",
+      "sourceCharacterId": "liting"
+    },
+    {
+      "id": "testimony-liting-voices",
+      "title": "李婷：会议室有声音",
+      "content": "20:15 前后，会议室灯关着，但里面有说话声，像是多人在开会——是好几个人说话的声音，不是一个人打电话。",
+      "sourceCharacterId": "liting"
+    },
+    {
+      "id": "testimony-liting-chenhao",
+      "title": "李婷：走廊遇到陈昊",
+      "content": "在走廊上遇到陈昊，他说'泽远还在里面聊'。当时我没多想，现在回想——如果那时泽远已经出事，他那句话是故意让我不要进去查看。",
+      "sourceCharacterId": "liting"
+    }
+  ],
+  "characters": [
+    {
+      "id": "chenhao",
+      "name": "陈昊",
+      "role": "高级工程师（死者下属）",
+      "avatar": "chenhao-avatar.png",
+      "portrait": "chenhao-calm.png",
+      "emotionPortraits": {
+        "neutral": "chenhao-calm.png",
+        "defensive": "chenhao-defensive.png",
+        "tense": "chenhao-wavering.png",
+        "collapse": "chenhao-broken.png"
+      },
+      "dialogueEntryNodeId": "node-chenhao-entry"
+    },
+    {
+      "id": "wangkai",
+      "name": "王凯",
+      "role": "工程师（死者同组）",
+      "avatar": "wangkai-avatar.png",
+      "portrait": "wangkai-impatient.png",
+      "emotionPortraits": {
+        "neutral": "wangkai-impatient.png",
+        "defensive": "wangkai-counter.png",
+        "serious": "wangkai-sincere.png"
+      },
+      "dialogueEntryNodeId": "node-wangkai-entry"
+    },
+    {
+      "id": "liting",
+      "name": "李婷",
+      "role": "HR 专员",
+      "avatar": "liting-avatar.png",
+      "portrait": "liting-polite.png",
+      "emotionPortraits": {
+        "neutral": "liting-polite.png",
+        "defensive": "liting-evasive.png",
+        "serious": "liting-surprised.png"
+      },
+      "dialogueEntryNodeId": "node-liting-entry"
+    }
+  ],
+  "dialogueNodes": [
+    {
+      "id": "node-chenhao-entry",
+      "characterId": "chenhao",
+      "entry": true,
+      "emotion": "neutral",
+      "lines": [
+        "我知道你要问什么。林经理 19:50 左右把我叫到 7 楼小会议室，我们……谈了一些事。工作上的事。大概 20:10 我就离开了。",
+        "我走的时候他好像还在打电话。具体跟谁打我不知道——我没听清楚。小票我还留着，通话记录也查得到。"
+      ],
+      "effects": [
+        { "type": "addTestimony", "testimonyId": "testimony-chenhao-initial" }
+      ],
+      "options": [
+        {
+          "id": "opt-chenhao-detail",
+          "label": "你们谈了什么？",
+          "to": "node-chenhao-detail"
+        },
+        {
+          "id": "opt-chenhao-back",
+          "label": "我记下了",
+          "to": "node-chenhao-entry"
+        }
+      ]
+    },
+    {
+      "id": "node-chenhao-detail",
+      "characterId": "chenhao",
+      "emotion": "defensive",
+      "lines": [
+        "就是……绩效的事。工作安排。没什么特别的。",
+        "我 20:10 就出来了，在对面便利店买了包烟，站在门口抽。20:17 给我老婆打了个电话，聊了十几分钟。"
+      ],
+      "options": [
+        {
+          "id": "opt-chenhao-detail-back",
+          "label": "好，我会继续调查",
+          "to": "node-chenhao-entry"
+        }
+      ]
+    },
+    {
+      "id": "node-wangkai-entry",
+      "characterId": "wangkai",
+      "entry": true,
+      "emotion": "neutral",
+      "lines": [
+        "我 19:50 下班，去了楼下隔壁的面馆吃饭。付款是 20:03，小票还在——或者你查我微信支付记录也行。20:10 我还给朋友点了一杯奶茶，美团外卖，定位就在面馆。21:00 之前我都不在公司。",
+        "你想问什么直接问。我跟林泽远有矛盾，整个部门都知道，不是什么秘密。"
+      ],
+      "effects": [
+        { "type": "addTestimony", "testimonyId": "testimony-wangkai-initial" }
+      ],
+      "options": [
+        {
+          "id": "opt-wangkai-chenhao",
+          "label": "你了解陈昊的情况吗？",
+          "to": "node-wangkai-about-chenhao"
+        },
+        {
+          "id": "opt-wangkai-back",
+          "label": "好，我先去看看现场",
+          "to": "node-wangkai-entry"
+        }
+      ]
+    },
+    {
+      "id": "node-wangkai-about-chenhao",
+      "characterId": "wangkai",
+      "emotion": "serious",
+      "lines": [
+        "陈昊他……那人不多话。我知道他小孩前段时间住院了，他没跟人提过，是有次他没接电话后来跟我道歉时说漏嘴。他经济压力肯定大。",
+        "泽远那天把他叫进去谈话的时候我就听见了，骂得挺狠——绩效 C、年终奖没有、下个月看表现。对陈昊那种人，这种话说出去跟要他命差不多。"
+      ],
+      "options": [
+        {
+          "id": "opt-wangkai-chenhao-back",
+          "label": "我记下了",
+          "to": "node-wangkai-entry"
+        }
+      ]
+    },
+    {
+      "id": "node-liting-entry",
+      "characterId": "liting",
+      "entry": true,
+      "emotion": "neutral",
+      "lines": [
+        "是我让保洁阿姨打的报警电话。我昨晚 20:08 左右刷卡进了 7 楼——我去处理一些人事相关的文件和材料。20:15 前后我经过小会议室门口，当时灯是关着的，但里面有说话的声音，像是在开会……我没多想就继续走了。大概 20:22 我离开 7 楼。",
+        "今天早上保洁阿姨喊我说会议室出事了，我过去看了一眼，然后就报警了。对不起……我现在还有点恍惚。"
+      ],
+      "effects": [
+        { "type": "addTestimony", "testimonyId": "testimony-liting-timeline" },
+        { "type": "addClue", "clueId": "c002" }
+      ],
+      "options": [
+        {
+          "id": "opt-liting-voices",
+          "label": "你听到的声音是什么样的？",
+          "to": "node-liting-voices"
+        },
+        {
+          "id": "opt-liting-chenhao",
+          "label": "你在走廊遇到过其他人吗？",
+          "to": "node-liting-chenhao",
+          "unlockCondition": ["testimony:testimony-liting-timeline"]
+        },
+        {
+          "id": "opt-liting-system",
+          "label": "公司用什么办公系统？",
+          "to": "node-liting-system"
+        },
+        {
+          "id": "opt-liting-back",
+          "label": "感谢你的配合",
+          "to": "node-liting-entry"
+        }
+      ]
+    },
+    {
+      "id": "node-liting-voices",
+      "characterId": "liting",
+      "emotion": "neutral",
+      "lines": [
+        "嗯……对，现在你说了我才想起来——是好几个人说话的声音，不是一个人打电话。我当时想着他们在开会就没多想。",
+        "但如果会议室里只有泽远一个人的话……那我听到的是什么？"
+      ],
+      "effects": [
+        { "type": "addTestimony", "testimonyId": "testimony-liting-voices" }
+      ],
+      "options": [
+        {
+          "id": "opt-liting-voices-back",
+          "label": "这很重要，谢谢",
+          "to": "node-liting-entry"
+        }
+      ]
+    },
+    {
+      "id": "node-liting-chenhao",
+      "characterId": "liting",
+      "emotion": "serious",
+      "lines": [
+        "我在走廊上遇到陈昊，他说'泽远还在里面聊'。当时我没多想。",
+        "（沉默片刻）……如果那时候泽远已经……那他说那句话就是让我不要进会议室。他知道我听见声音也不会进去查看。"
+      ],
+      "effects": [
+        { "type": "addTestimony", "testimonyId": "testimony-liting-chenhao" }
+      ],
+      "options": [
+        {
+          "id": "opt-liting-chenhao-back",
+          "label": "我明白了",
+          "to": "node-liting-entry"
+        }
+      ]
+    },
+    {
+      "id": "node-liting-system",
+      "characterId": "liting",
+      "emotion": "neutral",
+      "lines": [
+        "我们公司是用飞书办公的，所有会议都会自动归档到企业网盘，很方便呢——连远程参会都有完整录音。",
+        "平时开会、传文件、内部通讯全在上面。"
+      ],
+      "options": [
+        {
+          "id": "opt-liting-system-back",
+          "label": "好的，我了解了",
+          "to": "node-liting-entry"
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "meeting_room",
+      "label": "会议室（案发地）",
+      "background": "meeting_room.jpg",
+      "characterIds": [],
+      "hotspots": [
+        {
+          "id": "floor-blood",
+          "label": "地面血泊",
+          "sceneId": "meeting_room",
+          "position": { "x": 45, "y": 72 },
+          "positionMode": "percent",
+          "onInteract": [
+            { "type": "addClue", "clueId": "c001" },
+            { "type": "updateObjective", "objective": "分析血迹分布，追问陈昊离开时的情形。" },
+            { "type": "openOverlay", "overlay": "inspect" }
+          ]
+        },
+        {
+          "id": "thermos-weapon",
+          "label": "不锈钢保温杯（凶器）",
+          "sceneId": "meeting_room",
+          "position": { "x": 40, "y": 65 },
+          "positionMode": "percent",
+          "onInteract": [
+            { "type": "addClue", "clueId": "c009" },
+            { "type": "openOverlay", "overlay": "inspect" }
+          ]
+        },
+        {
+          "id": "door-handle",
+          "label": "会议室门把手",
+          "sceneId": "meeting_room",
+          "position": { "x": 12, "y": 58 },
+          "positionMode": "percent",
+          "onInteract": [
+            { "type": "addClue", "clueId": "c010" },
+            { "type": "openOverlay", "overlay": "inspect" }
+          ]
+        },
+        {
+          "id": "victim-computer",
+          "label": "死者电脑",
+          "sceneId": "meeting_room",
+          "position": { "x": 70, "y": 48 },
+          "positionMode": "percent",
+          "unlockCondition": ["clue:c002", "clue:c006"],
+          "onInteract": [
+            { "type": "addClue", "clueId": "c003" },
+            { "type": "addClue", "clueId": "c004" },
+            { "type": "updateObjective", "objective": "发现录音诡计——死亡时间早于 20:15，立即对质陈昊。" },
+            { "type": "openOverlay", "overlay": "inspect" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "office_area",
+      "label": "办公区",
+      "background": "office_area.jpg",
+      "characterIds": ["chenhao", "wangkai", "liting"],
+      "hotspots": [
+        {
+          "id": "chenhao-workstation",
+          "label": "陈昊工位",
+          "sceneId": "office_area",
+          "position": { "x": 38, "y": 55 },
+          "positionMode": "percent",
+          "onInteract": [
+            { "type": "updateObjective", "objective": "陈昊工位简单整洁——相框里是一家三口的照片。仔细搜查抽屉？" },
+            { "type": "setFlag", "flag": "chenhao-workstation-visited", "value": true }
+          ]
+        },
+        {
+          "id": "chenhao-drawer",
+          "label": "仔细搜查陈昊抽屉",
+          "sceneId": "office_area",
+          "position": { "x": 38, "y": 68 },
+          "positionMode": "percent",
+          "unlockCondition": ["flag:chenhao-workstation-visited"],
+          "onInteract": [
+            { "type": "addClue", "clueId": "clue-hospital-bill" },
+            { "type": "openOverlay", "overlay": "inspect" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "corridor",
+      "label": "走廊 / 门禁点",
+      "background": "corridor.jpg",
+      "characterIds": [],
+      "hotspots": [
+        {
+          "id": "access-reader",
+          "label": "门禁读卡器",
+          "sceneId": "corridor",
+          "position": { "x": 22, "y": 52 },
+          "positionMode": "percent",
+          "onInteract": [
+            { "type": "updateObjective", "objective": "门禁记录：李婷 20:08 入 / 20:22 出；陈昊 19:50 入 / 20:10 出。陈昊的离开时间与口供吻合。" }
+          ]
+        },
+        {
+          "id": "request-call-records",
+          "label": "申请调取运营商记录",
+          "sceneId": "corridor",
+          "position": { "x": 60, "y": 50 },
+          "positionMode": "percent",
+          "unlockCondition": ["clue:c002"],
+          "onInteract": [
+            { "type": "addClue", "clueId": "c006" },
+            { "type": "updateObjective", "objective": "运营商记录：死者手机 20:00-21:00 无任何通话。李婷听到的声音不是电话——那是什么？" },
+            { "type": "openOverlay", "overlay": "inspect" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "convenience_store",
+      "label": "便利店",
+      "background": "convenience_store.jpg",
+      "characterIds": [],
+      "unlockCondition": ["testimony:testimony-chenhao-initial"],
+      "hotspots": [
+        {
+          "id": "store-receipt",
+          "label": "收银台小票",
+          "sceneId": "convenience_store",
+          "position": { "x": 55, "y": 60 },
+          "positionMode": "percent",
+          "onInteract": [
+            { "type": "addClue", "clueId": "clue-store-receipt" },
+            { "type": "openOverlay", "overlay": "inspect" }
+          ]
+        }
+      ]
+    }
+  ],
+  "clues": [
+    {
+      "id": "c001",
+      "title": "血迹分布形态",
+      "description": "会议室地面有大片血泊，位置集中，无搏斗拖拽痕迹。桌面边缘可见极微量飞溅血雾。死者手机位于桌面远端，距离倒地位置超过一米，无血迹。",
+      "source": "会议室 / 地面",
+      "isKey": false,
+      "image": "clue-blood-pattern.jpg",
+      "role": "confrontation",
+      "interpretations": {
+        "canonical": {
+          "label": "死者遇袭时站在桌边，桌面血雾显示袭击瞬间的溅射——死者当时不在使用手机。",
+          "attacksTestimonyIds": ["chenhao-t3"]
+        },
+        "partial": {
+          "label": "现场无搏斗痕迹，死者被动倒下，熟人作案，一击致命。",
+          "attacksTestimonyIds": ["chenhao-t3"]
+        },
+        "misread": {
+          "label": "血迹凌乱分布说明搏斗激烈，凶手很可能在搏斗中受伤。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "c002",
+      "title": "李婷的听闻证词",
+      "description": "李婷（HR）陈述：20:15 左右经过 7 楼走廊时，听到会议室内有人说话。当时门关着、灯关着，但明显有多人对话的声音——她以为是有人在开线上会议，没有进去打扰。",
+      "source": "办公区 / 李婷",
+      "isKey": false,
+      "image": "clue-liting-statement.jpg",
+      "role": "confrontation",
+      "interpretations": {
+        "canonical": {
+          "label": "李婷听到的是多人对话的声音——但会议室内当时只有一具尸体。必定有什么东西在制造\"有人说话\"的声音。",
+          "attacksTestimonyIds": []
+        },
+        "partial": {
+          "label": "死者 20:15 还活着在开会——死亡时间是 20:15 之后。",
+          "attacksTestimonyIds": []
+        },
+        "misread": {
+          "label": "李婷明确听到\"说话声\"——死者当时在通话，调查通话对象。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "c003",
+      "title": "死者电脑上的音频文件与定时任务",
+      "description": "死者电脑本地存在一个音频文件 meeting_20260418.mp3，以及一个系统定时任务（设定 20:15 触发播放该文件）。音频内容为一段多人会议对话，时长约 8 分钟。文件下载时间戳为当晚 20:08。",
+      "source": "会议室 / 死者电脑",
+      "isKey": true,
+      "image": "clue-audio-cron.jpg",
+      "role": "confrontation",
+      "unlockRequirement": {
+        "requiredClueIds": ["c002", "c006"]
+      },
+      "interpretations": {
+        "canonical": {
+          "label": "这个音频文件是提前准备好的，定时播放。20:15 会议室里的\"说话声\"不是真实通话，是这段录音在播。",
+          "attacksTestimonyIds": ["wangkai-t2"]
+        },
+        "partial": {
+          "label": "死者电脑上有奇怪的音频文件，可能与案件有关。",
+          "attacksTestimonyIds": []
+        },
+        "misread": {
+          "label": "死者自己在播放这段录音——可能在回听会议内容，死前做的最后一件事是听录音。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "c004",
+      "title": "死者电脑的系统日志",
+      "description": "死者电脑系统日志显示 20:07-20:09 有一段集中操作：飞书客户端从后台被激活、死者与王凯的聊天记录被浏览、一个音频附件被下载到本地、系统任务计划程序被打开并创建了一个定时任务。键盘某几个按键上有微量血迹转移。",
+      "source": "会议室 / 死者电脑",
+      "isKey": false,
+      "image": "clue-keyboard-trace.jpg",
+      "role": "confrontation",
+      "unlockRequirement": {
+        "requiredClueIds": ["c003"]
+      },
+      "interpretations": {
+        "canonical": {
+          "label": "20:07-20:09 有人在操作死者电脑，动作专业——直接打开飞书、精准找到与王凯的聊天记录、下载音频、创建定时任务。这个人既知道电脑未锁，又熟悉公司软件系统，当时在场，并且手上有血。",
+          "attacksTestimonyIds": ["chenhao-t5"]
+        },
+        "partial": {
+          "label": "死者电脑上有操作记录，说明死者 20:07-20:09 还活着在操作电脑。",
+          "attacksTestimonyIds": ["chenhao-t5"]
+        },
+        "misread": {
+          "label": "操作记录显示死者在下载自己的会议录音来回听，并设置了自动重播。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "c006",
+      "title": "死者手机的运营商通话记录",
+      "description": "通过向运营商调取死者手机号码在 2026-04-21 20:00-21:00 之间的全部通话记录——无任何拨入或拨出通话。包括任何形式的语音电话、视频电话、短信记录均为空。",
+      "source": "走廊 / 门禁点",
+      "isKey": true,
+      "image": "clue-call-records.jpg",
+      "role": "confrontation",
+      "unlockRequirement": {
+        "requiredClueIds": ["c002"]
+      },
+      "interpretations": {
+        "canonical": {
+          "label": "运营商记录显示死者手机在 20:15 没有任何通话。李婷听到的\"说话声\"不是电话。",
+          "attacksTestimonyIds": ["chenhao-t3"]
+        },
+        "partial": {
+          "label": "这个时间没有通话记录——可能是网络问题，或者用的是 VoIP 软件，没走运营商。",
+          "attacksTestimonyIds": ["chenhao-t3"]
+        },
+        "misread": {
+          "label": "死者用的可能是公司的企业通讯系统（飞书），所以运营商没有记录很正常。李婷听到的是企业语音会议。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "c009",
+      "title": "会议室内的保温杯",
+      "description": "会议室地面上有一个不锈钢保温杯，紧贴死者头部位置，杯身一侧有明显凹陷（砸击变形）。杯内残留少量白水。杯身表面覆盖大量死者指纹（日常使用痕迹）。经深入取证送检后，杯身握持处发现一处陈昊的局部指纹，形态为\"用力抓握瞬间\"的压印，不是日常拿杯的分布。",
+      "source": "会议室 / 地面",
+      "isKey": false,
+      "image": "clue-thermos.jpg",
+      "role": "confrontation",
+      "interpretations": {
+        "canonical": {
+          "label": "死者自己的水杯成为凶器。陈昊的抓握指纹在握持处——是用力抓起杯子那一瞬间留下的。陈昊在会议室里有过\"抓起死者水杯\"的动作——结合一击致命，陈昊是用死者的水杯击杀死者的人。",
+          "attacksTestimonyIds": ["chenhao-t5"]
+        },
+        "partial": {
+          "label": "陈昊的指纹在死者水杯上——陈昊碰过死者的水杯。",
+          "attacksTestimonyIds": ["chenhao-t5"]
+        },
+        "misread": {
+          "label": "死者水杯上主要是死者自己的指纹——死者死前正在使用这个杯子，凶手从背后袭击，杯子掉在地上是死者倒下时脱手的。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "c010",
+      "title": "会议室门把手的擦拭痕迹",
+      "description": "会议室门外侧把手表面局部反光异常，可见细微布料纤维残留——有人擦拭过。门内侧把手上有一枚清晰的陈昊指纹，位于进门时自然的握持位置。",
+      "source": "会议室 / 门",
+      "isKey": false,
+      "image": "clue-door-handle.jpg",
+      "role": "confrontation",
+      "interpretations": {
+        "canonical": {
+          "label": "有人出门时擦了外侧把手，但进门时留下的内侧指纹没处理——这是凶手的手笔。陈昊的指纹在内侧，说明陈昊进过这个门，并且是出门时想要掩盖痕迹的人——因为只有凶手才会擦把手。",
+          "attacksTestimonyIds": ["chenhao-t2"]
+        },
+        "partial": {
+          "label": "外侧把手被擦过。有人试图清除痕迹，但不一定是凶手——可能是后来进过现场的人。",
+          "attacksTestimonyIds": ["chenhao-t2"]
+        },
+        "misread": {
+          "label": "内侧把手有陈昊指纹——说明陈昊进出这个会议室很多次（日常使用）。指纹不一定和案发当晚有关。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "clue-store-receipt",
+      "title": "陈昊的便利店购物小票",
+      "description": "陈昊主动提交的一张便利店小票。打印时间 2026-04-21 20:15:08，商品为万宝路香烟一包，付款方式：微信支付。便利店地址：XX 写字楼对面 50 米。便利店监控显示陈昊 20:14:30 进店、20:15:30 离店。",
+      "source": "便利店 / 收银台",
+      "isKey": false,
+      "image": "clue-store-receipt.jpg",
+      "role": "confrontation",
+      "interpretations": {
+        "canonical": {
+          "label": "小票和监控证明陈昊 20:14-20:16 在便利店，物理上不在会议室。但死亡时间不是 20:15——死亡时间是 20:05。这条 alibi 只证明陈昊不在 20:15 的会议室，不证明他不在 20:05 的会议室。",
+          "attacksTestimonyIds": ["chenhao-t4"]
+        },
+        "partial": {
+          "label": "小票和监控是真实的，陈昊 20:15 确实在便利店。陈昊不在场，可以从嫌疑人中排除。",
+          "attacksTestimonyIds": ["chenhao-t4"]
+        },
+        "misread": {
+          "label": "小票显示购买香烟——陈昊需要抽烟缓解情绪，说明他当晚情绪激动，可能刚经历了什么不寻常的事。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "clue-wangkai-recording",
+      "title": "王凯手机中的争吵录音原始版",
+      "description": "王凯手机中的一个音频文件，录制时间为 2026-04-18 14:30（案发前 3 天）。内容为一段约 8 分钟的多人会议录音：林泽远严厉批评陈昊的代码质量，陈昊沉默不语，王凯中途插话反驳，林泽远反过来批评王凯。经比对，该录音与死者电脑上的 meeting_20260418.mp3 是同一文件。王凯曾将此录音作为附件发给死者的上级领导，意图举报死者的管理方式。",
+      "source": "对质王凯 / C003 触发",
+      "isKey": true,
+      "image": "clue-wangkai-recording.jpg",
+      "role": "emotional",
+      "interpretations": {
+        "canonical": {
+          "label": "这段录音与 C003 播放的音频是同一份——陈昊使用了王凯的录音。但王凯 20:05-20:10 有硬 alibi（面馆付款 + 外卖定位），王凯不可能是凶手，但他的录音被凶手使用了。凶手是能访问死者飞书聊天记录的人。",
+          "attacksTestimonyIds": []
+        },
+        "partial": {
+          "label": "王凯偷录过这段争吵——王凯有对死者不满的动机。",
+          "attacksTestimonyIds": []
+        },
+        "misread": {
+          "label": "王凯偷录了会议内容——王凯是凶手，他用自己的录音制造了不在场证明。",
+          "attacksTestimonyIds": []
+        }
+      }
+    },
+    {
+      "id": "clue-hospital-bill",
+      "title": "陈昊工位抽屉里的医院缴费单",
+      "description": "一张皱巴巴的医院缴费单，被压在陈昊工位抽屉最底层。缴费金额 28,600 元，缴费日期为案发前 6 天。诊疗科室：儿童血液科。诊疗项目包含多项检查和初步治疗费用。备注栏标注：需继续治疗，后续费用待定。",
+      "source": "办公区 / 陈昊工位抽屉",
+      "isKey": false,
+      "image": "clue-hospital-bill.jpg",
+      "role": "emotional",
+      "interpretations": {
+        "canonical": {
+          "label": "陈昊的孩子重病，家庭经济极度紧张。结合死者当晚施压内容（考核 C + 裁员威胁）——陈昊的动机是\"孩子的生存\"，不是单纯的职场怨恨。",
+          "attacksTestimonyIds": []
+        },
+        "partial": {
+          "label": "陈昊家里有病人，经济有压力。",
+          "attacksTestimonyIds": []
+        },
+        "misread": {
+          "label": "陈昊可能因为医药费铤而走险杀人图财——但死者没被偷任何东西。",
+          "attacksTestimonyIds": []
+        }
+      }
+    }
+  ],
+  "confrontation": {
+    "target": "chenhao",
+    "maxMistakesPerRound": 2,
+    "rounds": [],
+    "suspects": [
+      {
+        "suspectId": "wangkai",
+        "maxMistakesPerRound": 3,
+        "rounds": [
+          {
+            "id": "wk-round-1",
+            "sentences": [
+              {
+                "id": "wangkai-t1",
+                "text": "我 20:03 在面馆付款，20:10 给朋友点了外卖，21:00 之前都不在公司。",
+                "contradictable": true,
+                "breakable": false
+              },
+              {
+                "id": "wangkai-t2",
+                "text": "3 天前我在会议室偷录了泽远骂陈昊的那次。我听说公司要裁员，我想留点证据防万一。",
+                "contradictable": true,
+                "breakable": false,
+                "unlocksSuspect": "chenhao"
+              },
+              {
+                "id": "wangkai-t3",
+                "text": "我跟泽远吵过。他骂人不分场合，对陈昊尤其狠。陈昊那个人——老实得过头了。",
+                "contradictable": true,
+                "breakable": false
+              }
+            ],
+            "enterEmotion": "neutral",
+            "onCorrectEmotion": "serious",
+            "onCorrectFeedback": "王凯（诧异后冷静）：那是我的录音没错。我把这份录音作为附件发给过泽远的上级王总，想让他们查查泽远的管理方式。你说这录音出现在泽远自己电脑上……那就是有人从他的飞书聊天里拿的。不是我。我 20 点不到就在面馆了。",
+            "onWrongFeedback": "王凯（白眼）：你在问什么？这跟我有关系吗？",
+            "onRoundLost": "王凯：我都说清楚了。"
+          }
+        ],
+        "onSuccess": "王凯已经配合了调查，真相在别处。"
+      },
+      {
+        "suspectId": "chenhao",
+        "maxMistakesPerRound": 2,
+        "rounds": [
+          {
+            "id": "ch-round-1",
+            "sentences": [
+              {
+                "id": "chenhao-t2",
+                "text": "大概 20:10 我就离开了会议室。",
+                "contradictable": true,
+                "breakable": true
+              }
+            ],
+            "enterEmotion": "neutral",
+            "onCorrectEmotion": "defensive",
+            "onCorrectFeedback": "陈昊（防御）：我……我不知道是谁擦的。\n\n侦探：内侧把手上的指纹是进门时留下的。你承认进过会议室。那擦外侧的人，是出门时想抹去自己痕迹的人。你是最后一个在那个时间段从里面出来的人。",
+            "onWrongFeedback": "陈昊：这条证据跟我说的有关系吗？",
+            "onRoundLost": "陈昊（冷静）：你拿不出证据就别乱怀疑。"
+          },
+          {
+            "id": "ch-round-2",
+            "sentences": [
+              {
+                "id": "chenhao-t3",
+                "text": "我走的时候他好像还在打电话。",
+                "contradictable": true,
+                "breakable": true
+              }
+            ],
+            "enterEmotion": "defensive",
+            "onCorrectEmotion": "tense",
+            "onCorrectFeedback": "陈昊（停顿）：没有通话？那……可能是我记错了？也许他那天不是在打电话，是在开线上会议？泽远晚上经常一个人加班开会。",
+            "onWrongFeedback": "陈昊：这条证据证明不了什么，别东拉西扯。",
+            "onRoundLost": "陈昊：你们查不出来的。我该说的都说过了。"
+          },
+          {
+            "id": "ch-round-3",
+            "sentences": [
+              {
+                "id": "chenhao-t4",
+                "text": "20:15 我在对面便利店买烟，20:17 给我老婆打电话，通话十几分钟。",
+                "contradictable": true,
+                "breakable": true
+              }
+            ],
+            "enterEmotion": "tense",
+            "onCorrectEmotion": "tense",
+            "onCorrectFeedback": "陈昊（沉默）\n\n侦探：你的便利店小票是真的。20:15 你确实在便利店买烟。但死亡时间不是 20:15。真正的死亡时间是 20:05——那时你还在会议室里。你的不在场证明保护的是错的时间点。",
+            "onWrongFeedback": "陈昊：小票和监控都在，我 20:15 在便利店是事实。",
+            "onRoundLost": "陈昊：这个证据说明不了什么。"
+          },
+          {
+            "id": "ch-round-4",
+            "sentences": [
+              {
+                "id": "chenhao-t5",
+                "text": "我和泽远谈话没有冲突。我不可能杀他。",
+                "contradictable": true,
+                "breakable": true
+              }
+            ],
+            "enterEmotion": "tense",
+            "onCorrectEmotion": "collapse",
+            "onCorrectFeedback": "陈昊（长时间沉默）\n\n侦探：你抓起了他面前的水杯——他自己的水杯——砸向了他的头。",
+            "onWrongFeedback": "陈昊：这证明不了我杀了他。",
+            "onRoundLost": "陈昊：就这样吧。我配合了。"
+          }
+        ],
+        "onSuccess": "陈昊的防线已经瓦解。真相已经摆在眼前。"
+      }
+    ]
+  },
+  "timelineSlots": [
+    {
+      "id": "t-2005",
+      "label": "20:05 左右 — 案发（水杯致命一击）",
+      "expectedClueId": "c009"
+    },
+    {
+      "id": "t-2007",
+      "label": "20:07-20:09 — 凶手操作死者电脑，设置录音定时任务",
+      "expectedClueId": "c004"
+    },
+    {
+      "id": "t-2010",
+      "label": "20:10 — 凶手离开现场，欺骗目击者",
+      "expectedClueId": "c010"
+    },
+    {
+      "id": "t-2015",
+      "label": "20:15 — 录音自动播放，伪造存活假象",
+      "expectedClueId": "c003"
+    }
+  ],
+  "submission": {
+    "suspects": ["陈昊", "王凯"],
+    "keyLies": [
+      "我 20:10 离开时死者还活着在打电话",
+      "我 20:15 在便利店是完整的不在场证明"
+    ],
+    "methods": [
+      "事先设置录音定时播放伪造存活假象，用死者水杯击杀",
+      "委托第三人作案"
+    ],
+    "destinations": [
+      "案发会议室（死者面前）",
+      "其他地点"
+    ],
+    "correct": {
+      "suspect": "陈昊",
+      "keyLie": "我 20:10 离开时死者还活着在打电话",
+      "method": "事先设置录音定时播放伪造存活假象，用死者水杯击杀",
+      "destination": "案发会议室（死者面前）"
+    }
+  },
+  "truthReplay": [
+    {
+      "id": "rp-1",
+      "title": "行凶",
+      "summary": "陈昊在 20:05 左右用死者的水杯击打死者头部，造成一击致命。无搏斗痕迹，蓄意且冷静。",
+      "timeAnchor": "20:05",
+      "evidenceIds": ["c009", "c001"]
+    },
+    {
+      "id": "rp-2",
+      "title": "伪造证据",
+      "summary": "陈昊在 20:07-20:09 用死者未锁屏的电脑，从死者飞书聊天记录里取出王凯的录音，设置定时任务 20:15 自动播放，制造死者仍活着的假象。",
+      "timeAnchor": "20:07-20:09",
+      "evidenceIds": ["c003", "c004"]
+    },
+    {
+      "id": "rp-3",
+      "title": "欺骗目击者",
+      "summary": "陈昊 20:10 离开时擦拭外侧门把手，并在走廊告诉李婷\"泽远还在里面聊\"，确保她听到录音也不会进去查看。",
+      "timeAnchor": "20:10",
+      "evidenceIds": ["c010"]
+    },
+    {
+      "id": "rp-4",
+      "title": "制造 alibi",
+      "summary": "20:15 陈昊在便利店买烟留下小票。但他的 alibi 保护的是错的时间点——死亡时间已是 20:05。",
+      "timeAnchor": "20:15",
+      "evidenceIds": ["clue-store-receipt", "c003"]
+    }
+  ],
+  "endings": {
+    "perfect-A": {
+      "title": "完美结局",
+      "body": "证据链完整。\n\n20:05，你在会议室里抓起林泽远面前的保温杯，砸向他的头。水杯上留下了你用力抓握的压印指纹。\n\n20:07 到 20:09，你用他未锁屏的电脑，从他和王凯的飞书聊天记录里找到那段会议录音——王凯 3 天前发给他上级的举报附件——下载下来，设置定时任务让它在 20:15 播放。键盘上有你手上的血。\n\n20:10，你出门时擦了外侧门把手，但内侧的指纹没擦掉。走廊上遇到李婷，你告诉她\"泽远还在里面聊\"——让她听到声音时不会进去查看。\n\n20:15，你在便利店买烟。20:17，会议室里的录音自动播放，李婷听到\"有人在说话\"——你的不在场证明看起来无懈可击。\n\n但你的不在场证明保护的是错的时间点。\n\n你不在 20:15 的会议室。没错。\n\n但你不在的时候，林泽远已经死了十分钟了。\n\n——\n\n陈昊（长时间沉默，低头）：\n\n\"……我没想过要杀他。\"\n\n（停顿）\n\n\"我走进那个会议室的时候，没想过。他骂我的时候，也没想过。他说我绩效 C、年终奖没有、下个月看表现的时候——我也没想过。\"\n\n（声音很轻）\n\n\"我只是……伸手抓了杯子。然后一切就结束了。\"\n\n（抬头看侦探）\n\n\"你说得对，我那七分钟是在用他的电脑做事。我不知道我当时在想什么。我就是……不想让我老婆知道我杀了人。我想回家，像什么都没发生过一样。\"\n\n（低头）\n\n\"我做到了半个小时。然后我打电话给她，她说孩子今天有点发烧，我说我快到家了。\"\n\n——\n\n陈昊被带走。\n\n会议室的灯终于被打开，保洁阿姨在走廊上看着警察进进出出，嘴里嘟囔\"这好好的怎么……\"\n\n林泽远的家属在来的路上。公司的裁员名单明天照常会发下去，包括陈昊的名字——尽管他永远不会看到了。\n\n案件结束。"
+    },
+    "perfect-B": {
+      "title": "完美结局",
+      "body": "证据链完整。\n\n20:05，你在会议室里抓起林泽远面前的保温杯，砸向他的头。水杯上留下了你用力抓握的压印指纹。\n\n20:07 到 20:09，你用他未锁屏的电脑，从他和王凯的飞书聊天记录里找到那段会议录音——王凯 3 天前发给他上级的举报附件——下载下来，设置定时任务让它在 20:15 播放。键盘上有你手上的血。\n\n20:10，你出门时擦了外侧门把手，但内侧的指纹没擦掉。走廊上遇到李婷，你告诉她\"泽远还在里面聊\"——让她听到声音时不会进去查看。\n\n20:15，你在便利店买烟。20:17，会议室里的录音自动播放，李婷听到\"有人在说话\"——你的不在场证明看起来无懈可击。\n\n但你的不在场证明保护的是错的时间点。\n\n你工位抽屉最底层那张皱巴巴的医院缴费单——28,600 元，儿童血液科，\"需继续治疗，后续费用待定\"——你从没跟同事提过。\n\n林泽远在会议室里告诉你：绩效 C，年终奖没有，下个月看表现。\n\n那句话对你来说不是\"绩效压力\"。是孩子下一轮治疗费没了。\n\n——\n\n陈昊（长时间沉默，低头）：\n\n\"……我没想过要杀他。\"\n\n（停顿）\n\n\"我女儿五岁。上个月查出来的。医生说早期，但是得打一种很贵的药——一个疗程快三万。我们存款不够。我老婆问我'要不要让你妈借一点'，我说不用。\"\n\n\"我跟泽远提过，希望他能让我接一个外包的小项目补贴家用。他说'公司有规定不允许'。\"\n\n（苦笑）\n\n\"那天他把我叫进会议室。他说他帮我争取过了，但是上面卡得紧。绩效还是 C。年终奖没有。他说……他说'下个月看表现，表现不好就要做选择了'。\"\n\n\"我问他什么选择。他说'我以为你懂。'\"\n\n（声音颤抖）\n\n\"我当时脑子里只有一件事——我女儿下一针打不上了。\"\n\n（沉默很久）\n\n\"……然后我就抓了他的杯子。\"\n\n（抬头看侦探，眼睛红了但没哭出来）\n\n\"我知道我不对。我知道杀人是错的。但是你问我，如果时间回到那一刻，我会不会再做一次——\"\n\n\"……我不知道。我真的不知道。\"\n\n——\n\n陈昊被带走时，他的手机响了。是他妻子打来的。\n\n警察没有让他接。\n\n屏幕上的通话提示一直亮着，直到被转接到语音信箱。\n\n案件结束。"
+    },
+    "perfect-C": {
+      "title": "完美结局",
+      "body": "证据链完整。\n\n20:05，你在会议室里抓起林泽远面前的保温杯，砸向他的头。\n\n你工位里压着一张医院缴费单。两万八千块。\n\n所以动机清楚了。你需要钱。林泽远断了你的年终奖和加薪。你杀了他。\n\n——\n\n陈昊（抬头，眼神异常）：\n\n\"……不是这样的。\"\n\n（停顿）\n\n\"你说我是为了钱杀的他？\"\n\n（摇头）\n\n\"不是。我不是为了钱。\"\n\n\"我杀他那一秒，我脑子里不是'我要钱'。我脑子里是……我也说不清楚。是他说那句话的时候，他脸上的表情。他不是在跟我谈事。他是在'处理一个低绩效员工'。我对他来说不是人。\"\n\n（低头）\n\n\"我不知道为什么在那一秒我变成了另一个人。但我知道我不是为了钱。\"\n\n（沉默）\n\n\"……我说了你也不信。算了。\"\n\n——\n\n陈昊被带走。他的说法没有被记录在正式供词里——办案人员记下的版本是标准的：\"嫌疑人陈昊因对被害人林泽远长期不满、加之当晚绩效及经济压力爆发，持凶器（保温杯）殴打被害人头部致死。\"\n\n案件结束。"
+    },
+    "partial": {
+      "title": "部分结局",
+      "body": "证据指向陈昊。\n\n水杯上的抓握指纹、门把手的擦拭痕迹、他本人 20:07-20:09 那段时间的可疑性——综合起来，他是嫌疑最大的人。\n\n但有一件事你没完全解释清楚：\n\n20:15 李婷听到的\"说话声\"到底是什么？陈昊在便利店买烟，这是事实。死者 20:15 应该还活着——如果那真的是死者的说话声。\n\n你选择以现有证据起诉陈昊。\n\n——\n\n陈昊（冷静）：\n\n\"我不认罪。\"\n\n\"你们说我的指纹在水杯上——那是因为我帮泽远倒过水。说门把手被擦过——擦的人不一定是我。说我 20:07 操作过他电脑——他自己的电脑，自己的账号，怎么证明是我？\"\n\n\"20:15 的时候我在便利店买烟，有小票有监控。那个时候他还活着。\"\n\n（抬头）\n\n\"你们有合理怀疑。但是没有完整的证据链。\"\n\n——\n\n陈昊被起诉了。但在庭审阶段，由于 20:15 \"通话\"部分的真相没有被完全揭示，辩护律师成功质疑了死亡时间的认定——主张陈昊在 20:10 离开会议室后有第三人进入作案。\n\n证据不足，陈昊被判处较轻的刑期。\n\n林泽远家属在判决后当庭落泪。\n\n案件技术上了结，但某些问题永远留在了暗处——包括那段 20:15 播放的录音，究竟是什么。\n\n案件结束。"
+    },
+    "wrong-A": {
+      "title": "错误结局",
+      "body": "证据看起来都指向王凯：\n\n他录过死者被骂的录音。他对死者有明显不满。死者电脑上的录音和他手机里的一模一样。他的工位在同一楼层。\n\n你决定起诉王凯。\n\n——\n\n王凯（冷笑）：\n\n\"我 20:03 在面馆扫码付款。你查了吗？20:10 我给朋友点了美团外卖，定位就在面馆。20:28 我还在面馆收到了朋友发来的奶茶到货确认。\"\n\n\"你要起诉我？行。你去法庭上解释一下——我一个在面馆吃饭的人，怎么在 20 公里外的会议室里杀人的？\"\n\n（甩手）\n\n\"真凶就在你眼皮底下，你看不见。我帮不了你。\"\n\n——\n\n陈昊（礼貌）：\n\n\"真的很遗憾发生这样的事。泽远一直对我不错——虽然最近工作压力大，他也是为了整个项目组。\"\n\n\"王凯确实经常跟泽远有矛盾。我当时没想到他会……唉，我也不知道该说什么。\"\n\n（鞠躬）\n\n\"如果需要我配合后续调查，请随时联系。\"\n\n——\n\n王凯被起诉，但由于不在场证明过硬，在庭审中被无罪释放。\n\n案件被标记为\"嫌疑人确认但证据不足\"。王凯辞职离开了公司。\n\n陈昊升了职。他接替了林泽远的位置。\n\n三个月后，他女儿开始了第二轮治疗。\n\n真凶没有被发现。\n\n案件结束。"
+    },
+    "wrong-B": {
+      "title": "调查失败",
+      "body": "证据不足。\n\n现有证据无法形成完整的指控链条。你决定暂不起诉。\n\n——\n\n陈昊（礼貌，看似悲伤）：\n\n\"希望尽快找到真相。泽远是个好领导——虽然严厉了些。他的家人应该有一个交代。\"\n\n——\n\n案件被归为悬案。\n\n一周后，公司照常发布了裁员名单。陈昊不在名单上——因为他\"最近表现有显著进步\"。\n\n两周后，陈昊接替了林泽远的位置。\n\n三个月后，他女儿开始了第二轮治疗。\n\n会议室的保温杯、陈昊的便利店小票、李婷 20:15 听到的\"说话声\"——所有这些线索还在那里，等一个愿意再看一眼的人。\n\n但那个人不是你。\n\n案件结束。"
+    }
+  },
+  "endingMatrix": {
+    "rules": [
+      {
+        "when": {
+          "submissionCorrect": true,
+          "clueInterpretations": { "clue-hospital-bill": "canonical" }
+        },
+        "requires": {
+          "totalScore": ">=14",
+          "keyCluesAllCanonical": ["c003", "c006", "clue-wangkai-recording"]
+        },
+        "endingKey": "perfect-B"
+      },
+      {
+        "when": {
+          "submissionCorrect": true,
+          "clueInterpretations": { "clue-hospital-bill": "misread" }
+        },
+        "requires": {
+          "totalScore": ">=14",
+          "keyCluesAllCanonical": ["c003", "c006", "clue-wangkai-recording"]
+        },
+        "endingKey": "perfect-C"
+      },
+      {
+        "when": { "submissionCorrect": true },
+        "requires": {
+          "totalScore": ">=14",
+          "keyCluesAllCanonical": ["c003", "c006", "clue-wangkai-recording"]
+        },
+        "endingKey": "perfect-A"
+      },
+      {
+        "when": { "submissionCorrect": true },
+        "requires": { "totalScore": ">=8" },
+        "endingKey": "partial"
+      },
+      {
+        "when": { "submissionWrongTarget": "王凯" },
+        "endingKey": "wrong-A"
+      }
+    ],
+    "fallback": "wrong-B"
+  }
+}
