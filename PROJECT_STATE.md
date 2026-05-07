@@ -1,5 +1,5 @@
 # PROJECT_STATE.md
-> 项目交接状态文档 | 最后更新:T2.7.1(路径文件名化 + helper 化 + 命名约定)完成,已合并 main
+> 项目交接状态文档 | 最后更新:T2.8(case-002 数据化 + 多嫌疑人反转机制)完成,已合并 main
 
 ---
 
@@ -7,7 +7,7 @@
 
 新对话开场白模板:
 
-"我在做侦探推理游戏 detective-mini。T0 + T1 + T1.5 + T2 + T2.5 + T2.5.1 + T2.6 + T2.7-A + T2.7-B + T2.7.1 已完成并合并 main。下面是完整项目状态文档,请先读完复述核心信息,然后我给你下一个任务。"
+"我在做侦探推理游戏 detective-mini。T0 + T1 + T1.5 + T2 + T2.5 + T2.5.1 + T2.6 + T2.7-A + T2.7-B + T2.7.1 + T2.8 已完成并合并 main。下面是完整项目状态文档,请先读完复述核心信息,然后我给你下一个任务。"
 
 ---
 
@@ -17,8 +17,8 @@
 - **类型**:浏览器端侦探推理游戏
 - **技术栈**:TypeScript + Vite,原生 innerHTML 渲染,无框架
 - **主入口**:src/main.ts → CaseSelector → src/stage1/app.ts(StageOneApp class)
-- **当前分支**:main(T2.7.1 已合)
-- **Bundle**:JS gzip ~22.32 kB(T2.7 系列累计 +0.37,21.95 → 22.32),CSS gzip ~6.61 kB
+- **当前分支**:main(T2.8 已合)
+- **Bundle**:JS gzip ~35.16 kB(基线 22.32 +12.84,主要来自 case-002 数据 JSON 内联),CSS gzip ~6.61 kB
 
 ---
 
@@ -262,6 +262,51 @@ F12 Network 无 4xx / Console 无 error。result 屏文本逐字与 T2.6-A 锁�
 **Bundle**:JS gzip 22.32(±0)/ CSS 6.61(±0)
 **真人实测 6 路径全过 + F12 Network/Console 全程清洁**
 
+### ✅ T2.8 case-002 数据化 + 多嫌疑人反转机制(7 文件)
+
+**新建 src/cases/case-002/data.json(46 KB / gzip ~12 kB)**
+- 10 条 clue(7 编号 c001-c010 + 3 无编号 store-receipt / wangkai-recording / hospital-bill)
+- 4 个 scene:会议室 / 办公区(含陈昊工位 hotspot)/ 走廊 / 便利店
+- 双嫌疑人 confrontation:陈昊(T2-T5 共 4 sentence,T1 删除转入初始陈述)
+  + 王凯(T1-T3 共 3 sentence,全部 breakable: false)
+- 李婷不进 confrontation,转入 dialogues 字段(investigation 阶段呈现)
+- 6 个 ending:perfect-A/B/C / partial / wrong-A/B
+- endingMatrix rules 顺序:perfect-B → perfect-C → perfect-A → partial → wrong-A → fallback wrong-B
+
+**新建 src/cases/case-002/index.ts**
+- 通过 loadCaseConfig('case-002') 取得 config
+
+**改 src/cases/index.ts**
+- CASE_REGISTRY 加入 'case-002': case002Definition
+
+**改 src/stage1/caseLoader.ts**
+- JSON_CASE_REGISTRY['case-002'] = case002Data as StageCaseConfig
+
+**改 src/stage1/types.ts**
+- TestimonySentence 加 breakable?: boolean + unlocksSuspect?: string
+- ConfrontationState 加 unlocked: boolean
+- EndingMatrixRule.when 加 clueInterpretations / submissionWrongTarget
+- EndingMatrixRule 加 requires(totalScore + keyCluesAllCanonical)
+- 不动 SAVE_VERSION
+
+**改 src/stage1/app.ts(7 处改动)**
+- enterConfrontation:lockedByDefault Set 推导 + unlocked 赋值
+- presentEvidence:breakable: false + canonical 分支(handleAttack 处理 unlocksSuspect)
+- resolveEnding:interpScore 计算(canonical=2/partial=1/misread=0)+ 4 类新条件检查
+- canAccuse:仅检查 currentSuspectId 的 roundResults
+- switchSuspect:locked 拦截 + 新建时 unlocked: true
+- tab 渲染:locked 状态显示 🔒 + disabled
+- idle 初始 ConfrontationState 加 unlocked: true(tsc 连锁修复)
+- case-001 行为零变化(现有 case-001 数据无 breakable 等新字段,默认值兼容)
+
+**新建 docs/t2.8-case-002-notes.md**
+- T2.8 范围 / schema 扩展记录 / 决策落地清单 /
+  attacksTestimonyIds 填值表(链接 task.md 第 4 节)/
+  endingMatrix 设计简述 / 评分加权方案 / unlocksSuspect 机制规范
+
+**Bundle**:JS gzip 22.32 → 35.16(+12.84,主要 JSON 内联),CSS 6.61(±0)
+**真人实测**:case-001 happy path 回归通过,case-002 基础功能通过(非全 17 路径覆盖)
+
 ---
 
 ## 5. 核心架构真相
@@ -277,6 +322,8 @@ F12 Network 无 4xx / Console 无 error。result 屏文本逐字与 T2.6-A 锁�
 - ✅ 数据驱动 endingMatrix(T2.6)
 - ✅ case 数据 JSON 外置(T2.7-B,case-001 已迁,case-002 起直接 JSON)
 - ✅ 素材路径 helper 化在 data 字段层面落地(T2.7.1)
+- ✅ case-002 上线(T2.8,首个 normal 难度 case,首演多嫌疑人反转机制)
+- ✅ unlocksSuspect / breakable 机制接入(T2.8,case-002 红鲱鱼叙事)
 - ❌ archive / intro 文案硬编码(T4 修)
 - ❌ deduction submission 选项卡片化但字段名硬编码(T3 修)
 - ❌ result 页 hardcoded 单文本(T2.6-A 显式锁定 = T3 时分离 success/failure 文案)
@@ -328,6 +375,15 @@ F12 Network 无 4xx / Console 无 error。result 屏文本逐字与 T2.6-A 锁�
 - T2.7-A 后 app.ts 内零硬编码 /assets/cases/case-001/ 路径
 - ✅ 16 处路径字段在 data.json 中只写文件名,12 处消费方经 getCaseAssetPath 拼接,
   getSceneBackground 与 getCharacterVisual 封装完整(T2.7.1)
+
+**Confrontation 反转机制(T2.8)**
+- breakable: false 的 sentence 在 canonical 攻击时不计 won,但触发副作用
+- unlocksSuspect 字段:canonical 攻击 breakable=false 的 sentence 时,
+  解锁指定 suspect 的 confrontation tab
+- ConfrontationState.unlocked 字段持久化锁定状态,SAVE_VERSION 不 bump
+- canAccuse 改为仅检查 currentSuspectId 的 roundResults,
+  避免王凯 tab 解锁陈昊后玩家直接在王凯 tab 指认
+- case-001 默认所有 sentence breakable=true,unlocked=true,行为零变化
 ---
 
 ## 6. KNOWN_ISSUES 清单
@@ -356,6 +412,12 @@ F12 Network 无 4xx / Console 无 error。result 屏文本逐字与 T2.6-A 锁�
 - handleConfrontationEnd 失败分支已完整重置;架构上仍存在"未来不经 startConfrontation 入口会出 bug"的隐患(目前不存在该入口,记录待观察)
 - T2.7-A 21 处路径替换无真人实测,T2.7-B 实测时若出现素材问题需双层归因
   (T2.7-A 拼接 bug vs T2.7-B JSON 翻译 bug)
+- case-002 perfect-A/B/partial 屏文本中 ASCII 直引号(原 ending.md 是中文弯引号)。
+  T2.8 实施时手写 JSON 用了直引号,实测体感影响小。修复方式:
+  把 data.json 中 13 处 \" 改回中文弯引号 ""。直引号差异由真实测者评估再决定。
+- case-002 部分实测路径未细测(P3 完美-C / P4 partial / P5 错误-A /
+  P9 反转触发负向 / P12 指认按钮位置 / P14 硬刷 unlocked 持久化)。
+  自用项目阶段接受 hotfix on main 模式,踩雷即修。
 ---
 
 ## 7. 改造路线剩余(case 难度驱动)
@@ -376,8 +438,9 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
   - ✅ T2.7-A case 导入架构基础设施(case-paths helper + JSON_CASE_REGISTRY 骨架)
   - ✅ T2.7-B case-001 数据 JSON 化
   - ✅ T2.7.1 路径字段文件名化 + 消费方 helper 化 + case-asset-conventions 文档
-- ⏳ **T2.8** case-002 数据化(三份剧本文档 → JSON 数据,直接走文件名约定)
-- ⏳ **T2.9** 抛光(T2.5.2 音乐 bug 现场复现 + dialogue 滚动复核 + 立绘情绪切换 + 多结局判定细节)
+- ✅ **T2.8** case-002 数据化 + 多嫌疑人反转机制(已合 main)
+- ⏳ **T2.9** 抛光(SFX 接入 / 音乐 bug 复现 / dialogue 滚动复核 /
+  立绘情绪过渡动画 / case-002 多结局判定细节调优 / 弯引号差异处理决策)
 
 ### P0 级(核心玩法,normal 难度门槛)
 - ⏳ T3:deduction 结构化重做(Obra Dinn 模式)+ result UI 重做
@@ -531,6 +594,41 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
 - 微盘点暴露 T2.7-A 决策 C 在 data 字段层未落地:T2.7-A 只在 app.ts 的 21 处硬编码路径上落地了 helper,data 字段未触及。"决策 C 落地不完整"被 T2.7-A 跳过实测掩盖了。T2.7-B 真人实测前的微盘点把这个隐患揪出来,避免归因复杂化。
 - "字段名假设"风险:T2.7-B 阶段二指令里写 `imagePath` / `portraits`,Code 主动纠正实际字段是 `image` / `portrait` / `emotionPortraits`。架构指令在不看实际源代码字段名的情况下易写错假设,Code 主动暴露字段差异的协作纪律必须延续。
 
+### T2.8 决策
+
+**评分体系候选 B(落地)**
+- canonical=2 / partial=1 / misread=0 / 不发现=0,上限 20 分
+- 阈值不变:完美 ≥14 / 部分 8-13 / 错误 ≤7
+
+**内容决策**
+- D1:陈昊 T1 删除,内容保留在初始陈述(investigation 对话引出)
+- D2:李婷不进 confrontation,所有 sentence 转入 investigation 对话
+- D3(候选 1'):王凯进 confrontation,T2 用 C003 canonical 触发反转 +
+  解锁陈昊 tab,通过 unlocksSuspect 机制实现
+- D4:C008 不参与 confrontation,只作 deduction 阶段拼图
+- D5:王凯录音原文件不参与 confrontation,只作 c003 配套展示
+
+**T2.8 跨阶段经验**
+- "项目阶段切换"识别:T2.7 系列"实测全过才合 main"纪律是"上线项目"模板。
+  T2.8 起项目进入"自用迭代期"(没有真玩家),纪律可以放松为
+  "实测覆盖关键路径,hotfix on main 可接受"。架构者下次识别"快速推进"信号
+  应立即切换模板,而不是按老纪律反复劝阻
+- 文档驱动开发的"基于真实文档"纪律:T2.8 启动前两次基于"记忆/脑补"
+  做盘点都翻车(C005/C007/C008 编造 / chenhao-s1~s7 编造)。
+  Code pre-flight 主动验证文档结构是关键的"事实校准"环节。
+  下次任何 case-N 启动前,task.md 第 4 节(attacksTestimonyIds 表)
+  必须基于"逐条抄录文档原文"而非记忆推测
+- "Claude Code 云端工作区 origin 缓存过期"陷阱:T2.8 pre-flight 暴露
+  云端工作区 origin 引用指向旧 main HEAD。后续 task 启动指令必须包含
+  "git fetch origin"显式同步,不能假设工作区已同步。已纳入 pre-flight 规范
+- 长任务(7 文件 + schema 扩展 + 算法新增)的"产出审阅追问"机制:
+  T2.8 报告中 Code 提到"修复了未转义双引号"和"app.ts 改了 7 处",
+  这两条触发追问指令,Code 诚实回答(没启动 dev server 实测 /
+  弯引号→直引号差异)。Code 主动暴露细节的协作纪律继续鼓励
+- "GitHub web PR merge"作为合并模式:T2.7 / T2.8 都用 PR merge 而非
+  本地 git merge --no-ff 直推。优点:GitHub 显式记录 merge commit,
+  云端工作区与本地状态可独立操作,后续 PR / Issue 关联清晰
+
 ### T2.7-A 决策(盘点暴露隐性遗留 → 升级合并 + 实测策略调整)
 
 **盘点暴露的关键事实**
@@ -558,9 +656,9 @@ T3-T15 是"为 case 解锁的素材库",非线性清单。
 
 ## 9. 下一步
 
-**T2.8** case-002 数据化(三份剧本文档 → JSON 数据,直接走文件名约定)。
-
-启动条件:T2.7.1 收尾的命名约定文档(`docs/case-asset-conventions.md`)可作为 case-002 数据填充的唯一参考。
+下一步:case-002 持续实测 + hotfix(踩雷即修),
+然后启动 T2.9 抛光阶段(SFX 接入 / 音乐 bug 复现 / dialogue 滚动复核 /
+立绘情绪过渡动画 / case-002 多结局判定细节调优 / 弯引号差异处理决策)。
 
 ### case-001 现网素材结构(T2.7 必须兼容)
 
