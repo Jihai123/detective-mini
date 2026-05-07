@@ -98,7 +98,7 @@ export class StageOneApp {
       restoreNotice: existingSave ? '已恢复上次进度。' : null,
       contradictionMessage: null,
       confrontation:
-        existingSave?.confrontation ?? { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: [], selectedSentenceId: null, lastFeedback: '完成调查后开始关键对质。', status: 'idle' },
+        existingSave?.confrontation ?? { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: [], selectedSentenceId: null, lastFeedback: '完成调查后开始关键对质。', status: 'idle', unlocked: true },
       timeline:
         existingSave?.timeline ?? { selectedClueId: null, placements: {}, conflicts: [], completed: false },
       submission:
@@ -439,12 +439,26 @@ export class StageOneApp {
     // Build / repair confrontationBySuspect: create fresh entries for allLost suspects,
     // leave ongoing/success suspects untouched (player can resume).
     const dict: Record<string, ConfrontationState> = { ...this.state.confrontationBySuspect };
+    // T2.8: a suspect starts locked if any other suspect's sentence has unlocksSuspect === sid
+    const lockedByDefault = new Set<string>();
+    if (suspects) {
+      for (const s of suspects) {
+        for (const r of s.rounds) {
+          for (const sentence of r.sentences) {
+            if (sentence.breakable === false && sentence.unlocksSuspect) {
+              lockedByDefault.add(sentence.unlocksSuspect);
+            }
+          }
+        }
+      }
+    }
     for (const sid of allSuspectIds) {
       const existing = dict[sid];
       if (!existing || existing.status === 'allLost') {
         const sc = suspects?.find((s) => s.suspectId === sid);
         const rounds = sc?.rounds ?? caseConfig.confrontation.rounds;
-        dict[sid] = { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: rounds.map(() => 'pending' as const), selectedSentenceId: null, status: 'ongoing', lastFeedback: '审视证人的每一句话。找出自相矛盾的那一句。' };
+        const unlocked = existing?.unlocked ?? !lockedByDefault.has(sid);
+        dict[sid] = { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: rounds.map(() => 'pending' as const), selectedSentenceId: null, status: 'ongoing', lastFeedback: '审视证人的每一句话。找出自相矛盾的那一句。', unlocked };
       }
     }
 
@@ -557,19 +571,38 @@ export class StageOneApp {
         };
       }
     } else {
-      // canonical or partial → advance round immediately, reset mistakes for new round
-      const newResults = [...this.state.confrontation.roundResults];
-      newResults[this.state.confrontation.roundIndex] = outcome === 'canonical' ? 'won' : 'draw';
-      console.log(`[inventory] ${outcome}: roundResult=${newResults[this.state.confrontation.roundIndex]} mistakesInCurrentRound reset 0 (was ${mistakesBefore})`);
-      this.state.confrontation = {
-        ...this.state.confrontation,
-        roundIndex: this.state.confrontation.roundIndex + 1,
-        mistakesInCurrentRound: 0,
-        roundResults: newResults,
-        selectedSentenceId: null,
-        lastFeedback: feedback,
-      };
-      this.advanceToNextPlayableRound();
+      // canonical or partial
+      const isBreakable = sentence.breakable !== false; // default true
+      if (outcome === 'canonical' && !isBreakable) {
+        // T2.8: breakable:false + canonical → side-effects only, don't advance round
+        console.log(`[T2.8] canonical on breakable:false sentence=${selectedId} unlocksSuspect=${sentence.unlocksSuspect ?? 'none'}`);
+        if (sentence.unlocksSuspect) {
+          const targetId = sentence.unlocksSuspect;
+          const targetState = this.state.confrontationBySuspect[targetId];
+          if (targetState && !targetState.unlocked) {
+            this.state.confrontationBySuspect = {
+              ...this.state.confrontationBySuspect,
+              [targetId]: { ...targetState, unlocked: true },
+            };
+            console.log(`[T2.8] unlocked suspect tab: ${targetId}`);
+          }
+        }
+        this.state.confrontation = { ...this.state.confrontation, selectedSentenceId: null, lastFeedback: feedback };
+      } else {
+        // canonical (breakable:true) or partial → advance round immediately, reset mistakes for new round
+        const newResults = [...this.state.confrontation.roundResults];
+        newResults[this.state.confrontation.roundIndex] = outcome === 'canonical' ? 'won' : 'draw';
+        console.log(`[inventory] ${outcome}: roundResult=${newResults[this.state.confrontation.roundIndex]} mistakesInCurrentRound reset 0 (was ${mistakesBefore})`);
+        this.state.confrontation = {
+          ...this.state.confrontation,
+          roundIndex: this.state.confrontation.roundIndex + 1,
+          mistakesInCurrentRound: 0,
+          roundResults: newResults,
+          selectedSentenceId: null,
+          lastFeedback: feedback,
+        };
+        this.advanceToNextPlayableRound();
+      }
     }
     this.syncSuspectState();
     this.emitEvent({ type: 'CONFRONTATION_PROGRESS', timestamp: Date.now(), payload: { outcome, round: `${this.state.confrontation.roundIndex}` } });
@@ -679,14 +712,61 @@ export class StageOneApp {
     };
   }
 
-  // T2.6-B: evaluates endingMatrix rules in order, returns first matching endingKey.
+  // T2.6-B / T2.8: evaluates endingMatrix rules in order, returns first matching endingKey.
   private resolveEnding(result: ResultState): string {
     const caseConfig = loadCaseConfig(this.state.caseId);
     const matrix = caseConfig.endingMatrix;
     if (!matrix) return 'default';
+
+    // T2.8: interpretation-based score (canonical=2, partial=1, misread/not-found=0)
+    const interpScore = caseConfig.clues.reduce((sum, clue) => {
+      const choice = this.state.interpretations.find((i) => i.clueId === clue.id);
+      if (!choice) return sum;
+      if (choice.selectedTier === 'canonical') return sum + 2;
+      if (choice.selectedTier === 'partial') return sum + 1;
+      return sum;
+    }, 0);
+
     for (const rule of matrix.rules) {
+      // legacy minScore check
       if (rule.when.minScore !== undefined && result.score < rule.when.minScore) continue;
+      // submissionCorrect check
       if (rule.when.submissionCorrect !== undefined && result.submissionCorrect !== rule.when.submissionCorrect) continue;
+      // T2.8: submissionWrongTarget check
+      if (rule.when.submissionWrongTarget !== undefined) {
+        if (result.submissionCorrect || this.state.submission.suspect !== rule.when.submissionWrongTarget) continue;
+      }
+      // T2.8: clueInterpretations check
+      if (rule.when.clueInterpretations) {
+        const match = Object.entries(rule.when.clueInterpretations).every(([clueId, tier]) => {
+          const choice = this.state.interpretations.find((i) => i.clueId === clueId);
+          return choice?.selectedTier === tier;
+        });
+        if (!match) continue;
+      }
+      // T2.8: requires.totalScore check
+      if (rule.requires?.totalScore) {
+        const expr = rule.requires.totalScore;
+        const m = expr.match(/^(>=|>|<=|<|=)(\d+)$/);
+        if (m) {
+          const threshold = parseInt(m[2]);
+          const passes =
+            m[1] === '>=' ? interpScore >= threshold :
+            m[1] === '>'  ? interpScore >  threshold :
+            m[1] === '<=' ? interpScore <= threshold :
+            m[1] === '<'  ? interpScore <  threshold :
+                            interpScore === threshold;
+          if (!passes) continue;
+        }
+      }
+      // T2.8: requires.keyCluesAllCanonical check
+      if (rule.requires?.keyCluesAllCanonical) {
+        const allCanonical = rule.requires.keyCluesAllCanonical.every((clueId) => {
+          const choice = this.state.interpretations.find((i) => i.clueId === clueId);
+          return choice?.selectedTier === 'canonical';
+        });
+        if (!allCanonical) continue;
+      }
       return rule.endingKey;
     }
     return matrix.fallback;
@@ -893,13 +973,18 @@ export class StageOneApp {
   }
 
   private canAccuse(): boolean {
-    return Object.values(this.state.confrontationBySuspect).some((conf) =>
-      conf.roundResults.some((r) => r === 'won' || r === 'draw')
-    );
+    // T2.8: only the CURRENT suspect's progress gates the accuse button.
+    // This ensures locked suspects (e.g. wangkai) never show the button.
+    const conf = this.state.confrontationBySuspect[this.state.currentSuspectId ?? ''];
+    if (!conf) return false;
+    return conf.roundResults.some((r) => r === 'won' || r === 'draw');
   }
 
   private switchSuspect(suspectId: string): void {
     if (this.state.currentSuspectId === suspectId) return;
+    // T2.8: block switching to locked suspect
+    const targetConf = this.state.confrontationBySuspect[suspectId];
+    if (targetConf && targetConf.unlocked === false) return;
     this.syncSuspectState();
     const prev = this.state.currentSuspectId;
     const caseConfig = loadCaseConfig(this.state.caseId);
@@ -909,7 +994,7 @@ export class StageOneApp {
       const newRounds = suspectConf?.rounds ?? caseConfig.confrontation.rounds;
       this.state.confrontationBySuspect = {
         ...this.state.confrontationBySuspect,
-        [suspectId]: { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: newRounds.map(() => 'pending' as const), selectedSentenceId: null, status: 'ongoing', lastFeedback: '审视证人的每一句话。找出自相矛盾的那一句。' },
+        [suspectId]: { roundIndex: 0, mistakesInCurrentRound: 0, roundResults: newRounds.map(() => 'pending' as const), selectedSentenceId: null, status: 'ongoing', lastFeedback: '审视证人的每一句话。找出自相矛盾的那一句。', unlocked: true },
       };
       void rounds; // suppress unused warning
     }
@@ -1142,7 +1227,10 @@ export class StageOneApp {
       ? `<div class="suspect-tabs">${suspects.map((s) => {
           const ch = caseConfig.characters.find((c) => c.id === s.suspectId);
           const active = s.suspectId === this.state.currentSuspectId;
-          return `<button class="suspect-tab${active ? ' is-active' : ''}" data-switch-suspect="${s.suspectId}">${ch?.name ?? s.suspectId}</button>`;
+          // T2.8: locked suspects are grayed out and non-clickable
+          const isLocked = this.state.confrontationBySuspect[s.suspectId]?.unlocked === false;
+          const tabLabel = isLocked ? '🔒 嫌疑人未明' : (ch?.name ?? s.suspectId);
+          return `<button class="suspect-tab${active ? ' is-active' : ''}${isLocked ? ' is-locked' : ''}" data-switch-suspect="${s.suspectId}" ${isLocked ? 'disabled' : ''}>${tabLabel}</button>`;
         }).join('')}</div>`
       : '';
 
