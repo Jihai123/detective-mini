@@ -10,6 +10,12 @@ export const case002Definition: CaseDefinition = {
     tutorialMode: false,
     order: 2,
     unlocked: true,
+    hero: {
+      image: 'meeting_room.jpg',
+      category: 'scenes',
+      altText: '案件 002 封面',
+    },
+    tagline: '标准难度',
   },
   config: case002Data as unknown as StageCaseConfig,
 };

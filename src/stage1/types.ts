@@ -262,6 +262,35 @@ export type StageCaseConfig = {
   // T2.6: data-driven 结局文本与矩阵(T2.6-B 接入 result 渲染)
   endings?: Record<string, EndingTextBlock>;
   endingMatrix?: EndingMatrix;
+  // T2.8.1: data-driven briefing + investigation flow
+  briefing?: {
+    title: string;
+    location: string;
+    timeRange: string;
+    summary: string;
+    incomingReport: string[];
+    suspects: Array<{ name: string; role: string }>;
+    initialObjective: string;
+    riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+    difficulty?: string;
+    investigationTags?: string[];
+    briefingHeroImage?: string;
+  };
+  investigationFlow?: {
+    initialNextAction: string;
+    contradictionTriggers?: Array<{
+      requiredClueIds: string[];
+      thenSetFlag: string;
+    }>;
+    flagBasedNextActions?: Array<{
+      whenFlag: string;
+      thenShow: string;
+    }>;
+    suspectQuestionPrompts?: Array<{
+      suspectId: string;
+      promptText: string;
+    }>;
+  };
 };
 
 export type InventoryClue = ClueConfig & { discoveredAt: number };

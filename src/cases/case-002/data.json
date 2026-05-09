@@ -330,7 +330,8 @@
           "positionMode": "percent",
           "onInteract": [
             { "type": "updateObjective", "objective": "陈昊工位简单整洁——相框里是一家三口的照片。仔细搜查抽屉？" },
-            { "type": "setFlag", "flag": "chenhao-workstation-visited", "value": true }
+            { "type": "setFlag", "flag": "chenhao-workstation-visited", "value": true },
+            { "type": "openOverlay", "overlay": "inspect" }
           ]
         },
         {
@@ -896,5 +897,54 @@
       }
     ],
     "fallback": "wrong-B"
+  },
+  "briefing": {
+    "title": "08:17 的通话",
+    "location": "北港生物研发中心 6 层",
+    "timeRange": "20:00 - 20:30",
+    "summary": "技术总监会议室猝死，凶手用录音伪造通话现场。",
+    "incomingReport": [
+      "20:30 保洁阿姨发现林泽远倒在小会议室，头部被钝器击伤。",
+      "李婷（HR）20:15 经过会议室时听到说话声 — 死亡时间存疑。",
+      "三个嫌疑人：陈昊（死者下属）/ 王凯（同组工程师）/ 李婷（HR）。"
+    ],
+    "suspects": [
+      { "name": "陈昊", "role": "高级工程师，死者下属，会前最后谈话者" },
+      { "name": "王凯", "role": "工程师，与死者有矛盾，偷录证据者" },
+      { "name": "李婷", "role": "HR 专员，20:15 经过会议室的目击者" }
+    ],
+    "initialObjective": "先确认 20:15 会议室里到底发生了什么。",
+    "riskLevel": "HIGH",
+    "difficulty": "NORMAL",
+    "investigationTags": ["企业命案", "时间诡计"],
+    "briefingHeroImage": "meeting_room.jpg"
+  },
+  "investigationFlow": {
+    "initialNextAction": "进入会议室，了解现场情况。",
+    "contradictionTriggers": [
+      {
+        "requiredClueIds": ["c001", "c009", "c010"],
+        "thenSetFlag": "scene-investigated"
+      },
+      {
+        "requiredClueIds": ["c002", "c006"],
+        "thenSetFlag": "time-contradiction-found"
+      }
+    ],
+    "flagBasedNextActions": [
+      {
+        "whenFlag": "time-contradiction-found",
+        "thenShow": "20:15 不存在通话，但李婷听到了说话声 — 追问陈昊"
+      },
+      {
+        "whenFlag": "scene-investigated",
+        "thenShow": "现场证据已收集，继续调查办公区与走廊"
+      }
+    ],
+    "suspectQuestionPrompts": [
+      { "suspectId": "chenhao", "promptText": "陈昊：死者下属，可追问最后谈话内容" },
+      { "suspectId": "wangkai", "promptText": "王凯：工程师，可追问当晚行踪" },
+      { "suspectId": "liting", "promptText": "李婷：HR，可追问 20:15 听到的声音" }
+    ]
   }
 }

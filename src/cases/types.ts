@@ -7,6 +7,13 @@ export type CaseMeta = {
   tutorialMode: boolean;
   order: number;
   unlocked: boolean;
+  // T2.8.1: selector card visual fields
+  hero?: {
+    image: string;
+    category: 'scenes' | 'characters' | 'clues';
+    altText?: string;
+  };
+  tagline?: string;
 };
 
 export type CaseDefinition = {

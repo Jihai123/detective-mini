@@ -48,16 +48,19 @@ export class CaseSelector {
       `;
     }
 
-    const isMain = meta.order === 1;
+    const hasHero = Boolean(meta.hero);
     const hasSave = !!localStorage.getItem(getSaveKey(meta.id));
     const btnLabel = hasSave ? '继续调查' : '开始调查';
+    const coverUrl = hasHero
+      ? `/assets/cases/${meta.id}/${meta.hero!.category}/${meta.hero!.image}`
+      : '';
 
     return `
-      <article class="directory-card${isMain ? ' directory-card-main' : ''}">
-        ${isMain ? `<div class="directory-card-cover" style="background-image:url('/assets/cases/${meta.id}/scenes/archive_cover.jpg')"></div>` : ''}
+      <article class="directory-card${hasHero ? ' directory-card-main' : ''}">
+        ${hasHero ? `<div class="directory-card-cover" style="background-image:url('${coverUrl}')"${meta.hero!.altText ? ` aria-label="${meta.hero!.altText}"` : ''}></div>` : ''}
         <div class="directory-card-content">
-          ${isMain ? `<h2>${meta.title}</h2>` : `<h3>${meta.title}</h3>`}
-          <p class="directory-tags">${this.difficultyLabel(meta.difficulty)}</p>
+          ${hasHero ? `<h2>${meta.title}</h2>` : `<h3>${meta.title}</h3>`}
+          <p class="directory-tags">${meta.tagline ?? this.difficultyLabel(meta.difficulty)}</p>
           <button class="primary-btn directory-enter-btn" data-select-case="${meta.id}">${btnLabel}</button>
         </div>
       </article>

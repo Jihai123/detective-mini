@@ -1,6 +1,7 @@
 import { loadCaseConfig } from './caseLoader';
 import { getSaveKey, loadStageSave, saveStageState } from './saveStore';
 import { getCaseAssetPath, FALLBACK_PATHS } from '../cases/case-paths';
+import { CASE_REGISTRY } from '../cases';
 import type {
   CharacterConfig,
   ClueConfig,
@@ -223,7 +224,7 @@ export class StageOneApp {
     this.idleHintTimer = window.setInterval(() => {
       const delta = Date.now() - this.state.lastDiscoveryAt;
       if (this.state.screen === 'investigation' && delta > 90000) {
-        this.primaryNotice = '线索停滞较久：回到 desk / door_terminal 或与周岚复核口径。';
+        this.primaryNotice = '线索停滞较久：检查是否还有未访问的热点，或尝试再次与人物对话。';
         this.state.hintCount += 1;
         this.state.lastDiscoveryAt = Date.now();
         this.persistState();
@@ -356,13 +357,15 @@ export class StageOneApp {
   }
 
   private evaluateFirstContradiction(): void {
-    if (this.state.flags['first-contradiction-found']) return;
-    if (!this.state.inventory.some((c) => c.id === 'clue-envelope-opened')) return;
-    if (!this.state.testimonies.some((t) => t.id === 'testimony-zhoulan-sealed')) return;
-    this.state.flags = { ...this.state.flags, 'first-contradiction-found': true };
-    this.state.objective = '第一处矛盾成立，继续补齐第二轮线索后发起关键对质。';
-    this.state.contradictionMessage = '周岚“封存后未触碰”与封套二次开启痕迹冲突。';
-    this.emitEvent({ type: 'CONTRADICTION_FOUND', timestamp: Date.now(), payload: { id: 'c1' } });
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const triggers = caseConfig.investigationFlow?.contradictionTriggers ?? [];
+    for (const trigger of triggers) {
+      if (this.state.flags[trigger.thenSetFlag]) continue;
+      const allPresent = trigger.requiredClueIds.every((id) => this.state.inventory.some((c) => c.id === id));
+      if (!allPresent) continue;
+      this.state.flags = { ...this.state.flags, [trigger.thenSetFlag]: true };
+      this.emitEvent({ type: 'CONTRADICTION_FOUND', timestamp: Date.now(), payload: { flag: trigger.thenSetFlag } });
+    }
   }
 
   private investigateHotspot(hotspotId: string): boolean {
@@ -424,7 +427,9 @@ export class StageOneApp {
   }
 
   private startConfrontation(): void {
-    if (!this.state.flags['first-contradiction-found']) return;
+    const _caseConfig = loadCaseConfig(this.state.caseId);
+    const _triggers = _caseConfig.investigationFlow?.contradictionTriggers ?? [];
+    if (_triggers.length > 0 && !_triggers.some((t) => this.state.flags[t.thenSetFlag])) return;
     if (!this.canEnterConfrontation()) {
       this.primaryNotice = '还有线索未发现或未解读，请先在证据库完成调查与解读';
       this.render();
@@ -1064,15 +1069,15 @@ export class StageOneApp {
 
 
   private getHotspotState(hotspotId: string): 'idle' | 'done' {
-    const doneByHotspot: Record<string, string> = {
-      desk: 'clue-envelope-opened',
-      door_terminal: 'clue-doorlog-0728',
-      monitor_node: 'clue-camera-gap-0731',
-      recycle_bin: 'clue-shred-label',
-    };
-    const clueId = doneByHotspot[hotspotId];
-    if (!clueId) return 'idle';
-    return this.state.inventory.some((item) => item.id === clueId) ? 'done' : 'idle';
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    for (const scene of caseConfig.scenes) {
+      const hotspot = scene.hotspots.find((h) => h.id === hotspotId);
+      if (!hotspot) continue;
+      const clueEffect = hotspot.onInteract.find((e) => e.type === 'addClue');
+      if (!clueEffect || clueEffect.type !== 'addClue') return 'idle';
+      return this.state.inventory.some((item) => item.id === clueEffect.clueId) ? 'done' : 'idle';
+    }
+    return 'idle';
   }
 
   private renderHotspots(): string {
@@ -1417,18 +1422,30 @@ export class StageOneApp {
   }
 
   private getNextActions(): string[] {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const flow = caseConfig.investigationFlow;
+    if (!flow) return [];
+
+    const anyTriggerFired = (flow.contradictionTriggers ?? []).some((t) => this.state.flags[t.thenSetFlag]);
+
+    if (!anyTriggerFired) {
+      return [flow.initialNextAction];
+    }
+
     const actions: string[] = [];
-    if (!this.state.flags['first-contradiction-found']) actions.push('追问周岚，确认“封存后未触碰”是否成立');
-    if (this.state.flags['first-contradiction-found'] && !this.state.inventory.some((item) => item.id === 'clue-camera-gap-0731')) actions.push('前往走廊监控区补全 07:31 空档');
-    if (this.state.flags['first-contradiction-found'] && !this.state.inventory.some((item) => item.id === 'clue-shred-label')) actions.push('检查茶水间回收桶，追索碎纸来源');
-    if (this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete']) actions.push('证据足够后进入关键对质');
+    for (const entry of flow.flagBasedNextActions ?? []) {
+      if (this.state.flags[entry.whenFlag]) actions.push(entry.thenShow);
+    }
     return actions.slice(0, 2);
   }
 
   private renderInvestigationBody(background: string): string {
+    const caseConfig = loadCaseConfig(this.state.caseId);
     const nextActions = this.getNextActions();
-    const canStartConfrontation = this.state.flags['first-contradiction-found'];
-    const chenxuWitnessCollected = this.state.testimonies.some((t) => t.id === 'testimony-chenxu-witness');
+    const triggers = caseConfig.investigationFlow?.contradictionTriggers ?? [];
+    const canStartConfrontation = triggers.length > 0
+      ? triggers.some((t) => this.state.flags[t.thenSetFlag])
+      : false;
     return `<div class="screen-scrollable">
       ${this.renderSceneTabs()}
       <div class="investigation-layout">
@@ -1437,8 +1454,7 @@ export class StageOneApp {
           <section><h3>调查判断</h3><p>${this.state.objective}</p></section>
           <section class="clue-cards-section"><h3>证据库</h3>${this.renderClueCards()}</section>
           <section><h3>下一步</h3><ul>${(nextActions.length ? nextActions : ['继续现场排查并形成可施压问题']).map((item) => `<li>${item}</li>`).join('')}</ul>
-            ${canStartConfrontation && !chenxuWitnessCollected ? '<p class="confrontation-hint">⚠ 证据可能尚未齐全：尝试再次追问陈序，或继续探索其他场景。</p>' : ''}
-            ${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? `<button class="primary-btn" data-start-confrontation="true" ${this.canEnterConfrontation() ? '' : 'disabled'}>进入关键对质</button>` : ''}
+            ${canStartConfrontation && !this.state.flags['confrontation-complete'] ? `<button class="primary-btn" data-start-confrontation="true" ${this.canEnterConfrontation() ? '' : 'disabled'}>进入关键对质</button>` : ''}
             ${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}
           </section>
         </aside>
@@ -1449,9 +1465,46 @@ export class StageOneApp {
   }
 
   private renderArchiveBody(): string {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const briefing = caseConfig.briefing;
     const canContinue = this.state.screen !== 'archive' || this.state.inventory.length > 0 || this.state.testimonies.length > 0;
+    const heroImage = briefing?.briefingHeroImage ?? 'archive_cover.jpg';
+    const coverUrl = getCaseAssetPath(this.state.caseId, 'scenes', heroImage);
+    const tags = briefing?.investigationTags?.join(' / ') ?? '';
+    const metaLine = briefing ? `${briefing.location} · ${briefing.timeRange}` : `${caseConfig.location} · ${caseConfig.timeRange}`;
+    const riskLine = briefing ? `风险等级：${briefing.riskLevel ?? 'NORMAL'} · 难度：${briefing.difficulty ?? 'NORMAL'}` : '';
+    const summary = briefing?.summary ?? caseConfig.summary;
+    const title = briefing?.title ?? caseConfig.title;
+
+    const otherCards = CASE_REGISTRY.filter((def) => def.meta.id !== this.state.caseId)
+      .map((def) => {
+        const m = def.meta;
+        const otherBriefing = def.config?.briefing;
+        if (!m.unlocked) {
+          return `<article class="case-card case-card-side case-card-locked" aria-disabled="true">
+            <div class="case-card-content">
+              <h3>${m.title}</h3>
+              <p class="case-tags">封存案件</p>
+              <p class="case-summary">${otherBriefing?.summary ?? '该档案尚未开放，请等待后续更新。'}</p>
+              <span class="locked-tag">权限锁定</span>
+            </div>
+          </article>`;
+        }
+        const otherHero = otherBriefing?.briefingHeroImage ?? 'archive_cover.jpg';
+        const otherCover = getCaseAssetPath(m.id, 'scenes', otherHero);
+        return `<article class="case-card case-card-side">
+          <div class="case-card-cover" style="background-image:url('${otherCover}')"></div>
+          <div class="case-card-content">
+            <h3>${m.title}</h3>
+            ${otherBriefing?.investigationTags ? `<p class="case-tags">${otherBriefing.investigationTags.join(' / ')}</p>` : ''}
+            ${otherBriefing ? `<p class="case-summary">${otherBriefing.summary}</p>` : ''}
+          </div>
+        </article>`;
+      })
+      .join('');
+
     return `
-      <section class="archive-shell" style="background-image:url('${getCaseAssetPath(this.state.caseId, 'scenes', 'archive_cover.jpg')}'), url('${FALLBACK_PATHS.scene}')">
+      <section class="archive-shell" style="background-image:url('${coverUrl}'), url('${FALLBACK_PATHS.scene}')">
         <header class="archive-header">
           <div>
             <h1>档案室 / CASE ARCHIVE</h1>
@@ -1461,62 +1514,65 @@ export class StageOneApp {
         </header>
         <section class="archive-grid">
           <article class="case-card case-card-main">
-            <div class="case-card-cover" style="background-image:url('${getCaseAssetPath(this.state.caseId, 'scenes', 'archive_cover.jpg')}')"></div>
+            <div class="case-card-cover" style="background-image:url('${coverUrl}')"></div>
             <div class="case-card-content">
-              <h2>08:17 的空档</h2>
-              <p class="case-tags">企业调查 / 资料失窃</p>
-              <p class="case-meta">北港生物研发中心 6 层 · 07:20 - 08:22</p>
-              <p class="case-risk">风险等级：HIGH · 难度：NORMAL</p>
-              <p class="case-summary">评审会前，唯一纸质结论页失踪。</p>
+              <h2>${title}</h2>
+              ${tags ? `<p class="case-tags">${tags}</p>` : ''}
+              <p class="case-meta">${metaLine}</p>
+              ${riskLine ? `<p class="case-risk">${riskLine}</p>` : ''}
+              <p class="case-summary">${summary}</p>
               <button class="primary-btn archive-enter-btn" data-screen="intro">${canContinue ? '继续导入' : '导入案件'}</button>
             </div>
           </article>
-          <article class="case-card case-card-side case-card-locked" aria-disabled="true">
-            <div class="case-card-content">
-              <h3>封存中</h3>
-              <p class="case-tags">封存案件</p>
-              <p class="case-summary">该档案尚未开放，请等待后续更新。</p>
-              <span class="locked-tag">权限锁定</span>
-            </div>
-          </article>
+          ${otherCards}
         </section>
       </section>
     `;
   }
 
   private renderIntroBody(): string {
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const briefing = caseConfig.briefing;
+    const title = briefing?.title ?? caseConfig.title;
+    const metaLine = briefing ? `${briefing.location} · ${briefing.timeRange}` : `${caseConfig.location} · ${caseConfig.timeRange}`;
+    const summary = briefing?.summary ?? caseConfig.summary;
+    const reportLines = briefing?.incomingReport ?? [];
+    const suspects = briefing?.suspects ?? [];
+    const objective = briefing?.initialObjective ?? caseConfig.initialObjective;
+    const heroImage = briefing?.briefingHeroImage ?? 'archive_cover.jpg';
+    const caseLabel = this.state.caseId.toUpperCase();
+
     return `
       <div class="screen-scrollable">
         <section class="briefing-shell">
           <header class="briefing-header">
-            <h1>08:17 的空档</h1>
-            <p>北港生物研发中心 6 层 · 07:20 - 08:22</p>
+            <h1>${title}</h1>
+            <p>${metaLine}</p>
           </header>
           <section class="briefing-layout">
             <article class="briefing-copy">
               <section>
                 <h2>案件摘要</h2>
-                <p>评审会开始前，唯一纸质结论页失踪。</p>
+                <p>${summary}</p>
               </section>
-              <section>
+              ${reportLines.length ? `<section>
                 <h2>接案简报</h2>
-                <p>07:20 资料送达，08:00 前结论页失踪。</p><p>外部评委已在路上，你只有一轮窗口锁定接触链。</p>
-              </section>
-              <section>
+                ${reportLines.map((line) => `<p>${line}</p>`).join('')}
+              </section>` : ''}
+              ${suspects.length ? `<section>
                 <h2>涉案人物概览</h2>
                 <ul>
-                  <li>周岚：行政助理，最后接触资料者</li>
-                  <li>陈序：产品经理，提供侧面信息</li>
+                  ${suspects.map((s) => `<li>${s.name}：${s.role}</li>`).join('')}
                 </ul>
-              </section>
+              </section>` : ''}
               <section>
                 <h2>当前调查目标</h2>
-                <p>先确认谁在会前接触过结论页。</p>
+                <p>${objective}</p>
               </section>
             </article>
-            <aside class="briefing-visual" style="background-image:url('${getCaseAssetPath(this.state.caseId, 'scenes', 'archive_cover.jpg')}'), url('${FALLBACK_PATHS.scene}')">
+            <aside class="briefing-visual" style="background-image:url('${getCaseAssetPath(this.state.caseId, 'scenes', heroImage)}'), url('${FALLBACK_PATHS.scene}')">
               <div class="briefing-visual-overlay">
-                <p>CASE-001 BRIEFING</p>
+                <p>${caseLabel} BRIEFING</p>
               </div>
             </aside>
           </section>
@@ -1545,7 +1601,7 @@ export class StageOneApp {
       <main class="stage-shell">
         ${archiveOrIntro ? '' : `<header class="status-bar">
           <div class="status-left"><h1>${caseConfig.title}</h1></div>
-          <div class="status-middle"><p>北港生物研发中心 6 层 · 07:20 - 08:22</p></div>
+          <div class="status-middle"><p>${caseConfig.briefing ? `${caseConfig.briefing.location} · ${caseConfig.briefing.timeRange}` : `${caseConfig.location} · ${caseConfig.timeRange}`}</p></div>
           <div class="status-right"><div><span>当前目标</span><strong>${this.state.objective}</strong></div>${DEV_MODE ? `<div><span>Screen</span><strong>${this.state.screen}</strong></div><div><span>Case</span><strong>${this.state.caseId}</strong></div><div><span>存档时间</span><strong>${updatedAt}</strong></div>` : ''}</div>
         </header>`}
         <section class="stage-main">
@@ -1561,7 +1617,7 @@ export class StageOneApp {
             <section><h3>当前 Objective</h3><p>${this.state.objective}</p></section>
             <section><h3>案发时段 / 地点</h3><p>${caseConfig.timeRange} · ${caseConfig.location}</p></section>
             <section><h3>第一处矛盾</h3><p>${this.state.contradictionMessage ?? '尚未成立'}</p></section>
-            <section><h3>关键对质</h3><p>${this.state.flags['confrontation-complete'] ? '已完成' : '未完成'}</p>${this.state.flags['first-contradiction-found'] && !this.state.flags['confrontation-complete'] ? `<button class="primary-btn" data-start-confrontation="true" ${this.canEnterConfrontation() ? '' : 'disabled'}>进入关键对质</button>` : ''}${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}</section>
+            <section><h3>关键对质</h3><p>${this.state.flags['confrontation-complete'] ? '已完成' : '未完成'}</p>${(caseConfig.investigationFlow?.contradictionTriggers ?? []).some((t) => this.state.flags[t.thenSetFlag]) && !this.state.flags['confrontation-complete'] ? `<button class="primary-btn" data-start-confrontation="true" ${this.canEnterConfrontation() ? '' : 'disabled'}>进入关键对质</button>` : ''}${this.state.flags['confrontation-complete'] && this.state.screen !== 'deduction' && this.state.screen !== 'result' ? '<button class="primary-btn" data-screen="deduction">进入时间验证与提交</button>' : ''}</section>
             ${DEV_MODE ? `<section><h3>DEV 事件</h3><ul class="event-feed">${this.state.eventFeed.map((evt) => `<li>${evt.type}</li>`).join('')}</ul></section>` : ''}
           </aside>` : ''}
         </section>
