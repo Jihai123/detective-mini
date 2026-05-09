@@ -12,7 +12,7 @@ export type HotspotEffect =
   | { type: 'addClue'; clueId: string }
   | { type: 'unlockDialogue'; dialogueId: string }
   | { type: 'updateObjective'; objective: string }
-  | { type: 'openOverlay'; overlay: Extract<Overlay, 'inspect'> }
+  | { type: 'openOverlay'; overlay: Extract<Overlay, 'inspect'>; description?: string; searchHotspotId?: string }
   | { type: 'setScene'; sceneId: string };
 
 export type DialogueEffect =
@@ -240,6 +240,7 @@ export type SceneConfig = {
   hotspots: HotspotConfig[];
   characterIds: string[];
   unlockCondition?: ConditionExpr;
+  onEnter?: { setFlag?: string };
 };
 
 export type StageCaseConfig = {
@@ -291,6 +292,9 @@ export type StageCaseConfig = {
       promptText: string;
     }>;
   };
+  audio?: {
+    sceneBgm?: Record<string, string>;
+  };
 };
 
 export type InventoryClue = ClueConfig & { discoveredAt: number };
@@ -299,6 +303,8 @@ export type InventoryTestimony = TestimonyConfig & { discoveredAt: number };
 export type InspectCard = {
   hotspotLabel: string;
   clue: InventoryClue | null;
+  description?: string;
+  searchHotspotId?: string;
 };
 
 export type DialogueState = {
