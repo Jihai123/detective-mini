@@ -686,5 +686,42 @@
       }
     ],
     "fallback": "failure"
+  },
+  "briefing": {
+    "title": "08:17 的空档",
+    "location": "北港生物研发中心 6 层",
+    "timeRange": "07:20 - 08:22",
+    "summary": "评审会开始前，唯一纸质结论页失踪。",
+    "incomingReport": [
+      "07:20 资料送达，08:00 前结论页失踪。",
+      "外部评委已在路上，你只有一轮窗口锁定接触链。"
+    ],
+    "suspects": [
+      { "name": "周岚", "role": "行政助理，最后接触资料者" },
+      { "name": "陈序", "role": "产品经理，提供侧面信息" }
+    ],
+    "initialObjective": "先确认谁在会前接触过结论页。",
+    "riskLevel": "HIGH",
+    "difficulty": "NORMAL",
+    "investigationTags": ["企业调查", "资料失窃"],
+    "briefingHeroImage": "archive_cover.jpg"
+  },
+  "investigationFlow": {
+    "initialNextAction": "追问周岚，确认\"封存后未触碰\"是否成立",
+    "contradictionTriggers": [
+      {
+        "requiredClueIds": ["clue-envelope-opened"],
+        "thenSetFlag": "first-contradiction-found"
+      }
+    ],
+    "flagBasedNextActions": [
+      { "whenFlag": "first-contradiction-found", "thenShow": "前往走廊监控区补全 07:31 空档" },
+      { "whenFlag": "first-contradiction-found", "thenShow": "检查茶水间回收桶，追索碎纸来源" },
+      { "whenFlag": "first-contradiction-found", "thenShow": "证据足够后进入关键对质" }
+    ],
+    "suspectQuestionPrompts": [
+      { "suspectId": "zhoulan", "promptText": "周岚：行政助理，可追问" },
+      { "suspectId": "chenxu", "promptText": "陈序：产品经理，可追问" }
+    ]
   }
 }

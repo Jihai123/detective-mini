@@ -10,6 +10,12 @@ export const case001: CaseDefinition = {
     tutorialMode: true,
     order: 1,
     unlocked: true,
+    hero: {
+      image: 'archive_cover.jpg',
+      category: 'scenes',
+      altText: '案件 001 封面',
+    },
+    tagline: '教学档案',
   },
   config: case001Data as unknown as StageCaseConfig,
 };
