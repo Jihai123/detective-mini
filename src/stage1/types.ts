@@ -18,7 +18,8 @@ export type HotspotEffect =
 export type DialogueEffect =
   | { type: 'addTestimony'; testimonyId: string }
   | { type: 'setFlag'; flag: string; value: boolean }
-  | { type: 'updateObjective'; objective: string };
+  | { type: 'updateObjective'; objective: string }
+  | { type: 'addClue'; clueId: string };
 
 export type HotspotConfig = {
   id: string;

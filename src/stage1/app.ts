@@ -347,7 +347,7 @@ export class StageOneApp {
     }
   }
 
-  private applyDialogueEffect(testimonies: TestimonyConfig[], effect: DialogueEffect): void {
+  private applyDialogueEffect(testimonies: TestimonyConfig[], effect: DialogueEffect, clues?: ClueConfig[]): void {
     if (effect.type === 'setFlag') this.state.flags = { ...this.state.flags, [effect.flag]: effect.value };
     if (effect.type === 'updateObjective' && this.state.objective !== effect.objective) {
       this.state.objective = effect.objective;
@@ -361,6 +361,21 @@ export class StageOneApp {
       this.state.testimonies = [record, ...this.state.testimonies];
       this.state.lastDiscoveryAt = Date.now();
       this.emitEvent({ type: 'TESTIMONY_ADDED', timestamp: Date.now(), payload: { testimonyId: record.id } });
+    }
+    if (effect.type === 'addClue') {
+      if (this.state.inventory.some((c) => c.id === effect.clueId)) return;
+      const caseClues = clues ?? loadCaseConfig(this.state.caseId).clues;
+      const clue = this.findClue(caseClues, effect.clueId);
+      if (!clue) return;
+      const discovered: InventoryClue = { ...clue, discoveredAt: Date.now() };
+      this.state.inventory = [discovered, ...this.state.inventory];
+      this.state.lastDiscoveryAt = Date.now();
+      if (!this.state.clueRuntimeStates.some((rs) => rs.clueId === clue.id)) {
+        this.state.clueRuntimeStates = [...this.state.clueRuntimeStates, { clueId: clue.id, discoverable: true, currentLayer: 0 }];
+      }
+      const caseConfig = loadCaseConfig(this.state.caseId);
+      this.recomputeUnlockStates(caseConfig);
+      this.emitEvent({ type: 'CLUE_DISCOVERED', timestamp: Date.now(), payload: { clueId: discovered.id } });
     }
   }
 
@@ -407,7 +422,7 @@ export class StageOneApp {
     const node = caseConfig.dialogueNodes.find((item) => item.id === nodeId);
     if (!node) return;
     if (!this.state.visitedDialogueNodes.includes(node.id)) this.state.visitedDialogueNodes.push(node.id);
-    (node.effects ?? []).forEach((effect) => this.applyDialogueEffect(caseConfig.testimonies, effect));
+    (node.effects ?? []).forEach((effect) => this.applyDialogueEffect(caseConfig.testimonies, effect, caseConfig.clues));
     this.evaluateFirstContradiction();
     this.emitEvent({ type: 'DIALOGUE_NODE_REACHED', timestamp: Date.now(), payload: { nodeId } });
     this.persistState();
