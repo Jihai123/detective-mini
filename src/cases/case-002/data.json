@@ -311,6 +311,7 @@
           "onInteract": [
             { "type": "addClue", "clueId": "c003" },
             { "type": "addClue", "clueId": "c004" },
+            { "type": "addClue", "clueId": "clue-wangkai-recording" },
             { "type": "updateObjective", "objective": "发现录音诡计——死亡时间早于 20:15，立即对质陈昊。" },
             { "type": "openOverlay", "overlay": "inspect" }
           ]
