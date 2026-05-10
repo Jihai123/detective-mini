@@ -1,6 +1,6 @@
 {
   "id": "case-002",
-  "title": "08:17 的通话",
+  "title": "办公室的谋杀案",
   "summary": "软件部门总监林泽远在公司 7 楼小会议室遇害，死亡时间被精心伪装——真正的凶手制造了一个完美的 20:15 不在场证明。",
   "timeRange": "20:00 - 21:00",
   "location": "XX 科技公司 7 楼",
@@ -95,7 +95,8 @@
         "我走的时候他好像还在打电话。具体跟谁打我不知道——我没听清楚。小票我还留着，通话记录也查得到。"
       ],
       "effects": [
-        { "type": "addTestimony", "testimonyId": "testimony-chenhao-initial" }
+        { "type": "addTestimony", "testimonyId": "testimony-chenhao-initial" },
+        { "type": "setFlag", "flag": "chenhao-questioned", "value": true }
       ],
       "options": [
         {
@@ -331,7 +332,7 @@
           "onInteract": [
             { "type": "updateObjective", "objective": "陈昊工位简单整洁——相框里是一家三口的照片。仔细搜查抽屉？" },
             { "type": "setFlag", "flag": "chenhao-workstation-visited", "value": true },
-            { "type": "openOverlay", "overlay": "inspect" }
+            { "type": "openOverlay", "overlay": "inspect", "description": "陈昊工位简单整洁，相框是一家三口的照片。书桌一角有零散文件，抽屉看起来锁着。", "searchHotspotId": "chenhao-drawer" }
           ]
         },
         {
@@ -353,6 +354,7 @@
       "label": "走廊 / 门禁点",
       "background": "corridor.jpg",
       "characterIds": [],
+      "onEnter": { "setFlag": "scene-corridor-done" },
       "hotspots": [
         {
           "id": "access-reader",
@@ -384,7 +386,7 @@
       "label": "便利店",
       "background": "convenience_store.jpg",
       "characterIds": [],
-      "unlockCondition": ["testimony:testimony-chenhao-initial"],
+      "unlockCondition": ["flag:chenhao-questioned"],
       "hotspots": [
         {
           "id": "store-receipt",
@@ -899,10 +901,10 @@
     "fallback": "wrong-B"
   },
   "briefing": {
-    "title": "08:17 的通话",
+    "title": "办公室的谋杀案",
     "location": "北港生物研发中心 6 层",
     "timeRange": "20:00 - 20:30",
-    "summary": "技术总监会议室猝死，凶手用录音伪造通话现场。",
+    "summary": "技术总监深夜在小会议室遇害，凶手用一段录音伪造通话现场。",
     "incomingReport": [
       "20:30 保洁阿姨发现林泽远倒在小会议室，头部被钝器击伤。",
       "李婷（HR）20:15 经过会议室时听到说话声 — 死亡时间存疑。",
@@ -920,25 +922,49 @@
     "briefingHeroImage": "meeting_room.jpg"
   },
   "investigationFlow": {
-    "initialNextAction": "进入会议室，了解现场情况。",
+    "initialNextAction": "查看现场，采集物证。",
     "contradictionTriggers": [
       {
         "requiredClueIds": ["c001", "c009", "c010"],
-        "thenSetFlag": "scene-investigated"
+        "thenSetFlag": "scene-meeting-done"
       },
       {
-        "requiredClueIds": ["c002", "c006"],
-        "thenSetFlag": "time-contradiction-found"
+        "requiredClueIds": ["clue-hospital-bill"],
+        "thenSetFlag": "scene-office-done"
+      },
+      {
+        "requiredClueIds": ["clue-store-receipt"],
+        "thenSetFlag": "scene-store-done"
+      },
+      {
+        "requiredClueIds": ["c003"],
+        "thenSetFlag": "computer-evidence-found"
       }
     ],
     "flagBasedNextActions": [
       {
-        "whenFlag": "time-contradiction-found",
-        "thenShow": "20:15 不存在通话，但李婷听到了说话声 — 追问陈昊"
+        "whenFlag": "scene-meeting-done",
+        "thenShow": "现场物证已采集。前往办公区调查嫌疑人工作环境。"
       },
       {
-        "whenFlag": "scene-investigated",
-        "thenShow": "现场证据已收集，继续调查办公区与走廊"
+        "whenFlag": "scene-office-done",
+        "thenShow": "陈昊有重大经济压力。沿走廊核对门禁与监控记录。"
+      },
+      {
+        "whenFlag": "scene-corridor-done",
+        "thenShow": "陈昊离开时间已确认。回到会议室，询问嫌疑人当晚行踪。"
+      },
+      {
+        "whenFlag": "chenhao-questioned",
+        "thenShow": "陈昊提到他在便利店买烟。前往便利店核实 alibi。"
+      },
+      {
+        "whenFlag": "scene-store-done",
+        "thenShow": "陈昊在便利店时间窗口存在疑点。死者电脑可能藏有线索。"
+      },
+      {
+        "whenFlag": "computer-evidence-found",
+        "thenShow": "录音定时播放伪造了通话现场。线索齐全，可以与嫌疑人对质。"
       }
     ],
     "suspectQuestionPrompts": [
@@ -946,5 +972,13 @@
       { "suspectId": "wangkai", "promptText": "王凯：工程师，可追问当晚行踪" },
       { "suspectId": "liting", "promptText": "李婷：HR，可追问 20:15 听到的声音" }
     ]
+  },
+  "audio": {
+    "sceneBgm": {
+      "meeting_room": "room_loop.mp3",
+      "office_area": "investigation_loop.mp3",
+      "corridor": "hallway_loop.mp3",
+      "convenience_store": "pantry_loop.mp3"
+    }
   }
 }

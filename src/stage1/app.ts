@@ -144,7 +144,8 @@ export class StageOneApp {
   }
 
   private syncAmbienceForScene(sceneId: string): void {
-    const file = AMBIENCE_FILES[sceneId];
+    const caseConfig = loadCaseConfig(this.state.caseId);
+    const file = caseConfig.audio?.sceneBgm?.[sceneId] ?? AMBIENCE_FILES[sceneId];
     const track = file ? getCaseAssetPath(this.state.caseId, 'audio', file) : '';
     if (!track || this.ambienceSceneId === sceneId) return;
 
@@ -319,7 +320,11 @@ export class StageOneApp {
     }
     if (effect.type === 'openOverlay') {
       this.state.overlay = effect.overlay;
-      this.state.inspectCard = { hotspotLabel: hotspot.label, clue: this.state.inventory[0] ?? null };
+      if (effect.description) {
+        this.state.inspectCard = { hotspotLabel: hotspot.label, clue: null, description: effect.description, searchHotspotId: effect.searchHotspotId };
+      } else {
+        this.state.inspectCard = { hotspotLabel: hotspot.label, clue: this.state.inventory[0] ?? null };
+      }
     }
     if (effect.type === 'addClue') {
       if (this.state.inventory.some((clue) => clue.id === effect.clueId)) return;
@@ -1129,7 +1134,14 @@ export class StageOneApp {
 
   private renderInspectOverlay(): string {
     if (this.state.overlay !== 'inspect' || !this.state.inspectCard) return '';
-    const clue = this.state.inspectCard.clue;
+    const card = this.state.inspectCard;
+    if (card.description) {
+      const searchBtn = card.searchHotspotId
+        ? `<button data-hotspot-id="${card.searchHotspotId}" class="primary-btn">搜查抽屉</button>`
+        : `<button data-close-overlay="true" class="primary-btn">关闭</button>`;
+      return `<section class="overlay"><div class="inspect-card"><p class="inspect-kicker">现场勘察</p><h3>${card.hotspotLabel}</h3><p class="inspect-judgement">${card.description}</p>${searchBtn}</div></section>`;
+    }
+    const clue = card.clue;
     const impactLine = clue?.id === 'clue-envelope-opened'
       ? '封套完整性的说法已经站不住了。'
       : clue?.id === 'clue-doorlog-0728'
@@ -1658,7 +1670,7 @@ export class StageOneApp {
     if (close) close.addEventListener('click', () => this.closeOverlay());
     const next = this.root.querySelector<HTMLButtonElement>('[data-next="true"]');
     if (next) next.addEventListener('click', () => this.goNextScreen());
-    this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(getCaseAssetPath(this.state.caseId, 'audio', 'ui-click.mp3'), 0.28); this.state.currentSceneId = scene.id; this.persistState(); this.render(); }));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-scene-id]').forEach((button) => button.addEventListener('click', () => { const id = button.dataset.sceneId; if (!id) return; const scene = loadCaseConfig(this.state.caseId).scenes.find((s) => s.id === id); if (!scene || !this.evalCondition(scene.unlockCondition).ok) return; this.playSfx(getCaseAssetPath(this.state.caseId, 'audio', 'ui-click.mp3'), 0.28); this.state.currentSceneId = scene.id; if (scene.onEnter?.setFlag && !this.state.flags[scene.onEnter.setFlag]) { this.state.flags = { ...this.state.flags, [scene.onEnter.setFlag]: true }; } this.persistState(); this.render(); }));
     const startConf = this.root.querySelector<HTMLButtonElement>('[data-start-confrontation="true"]');
     if (startConf) startConf.addEventListener('click', () => this.startConfrontation());
     this.root.querySelectorAll<HTMLButtonElement>('[data-present-evidence]').forEach((button) => button.addEventListener('click', () => { const evidenceId = button.dataset.presentEvidence; if (!evidenceId) return; const caseConf = loadCaseConfig(this.state.caseId); const outcome = this.resolveOutcome(evidenceId, this.state.confrontation.selectedSentenceId ?? '', caseConf); this.playSfx(outcome === 'canonical' ? getCaseAssetPath(this.state.caseId, 'audio', 'confrontation-success.mp3') : getCaseAssetPath(this.state.caseId, 'audio', 'contradiction-hit.mp3'), outcome === 'canonical' ? 0.48 : 0.34); this.presentEvidence(evidenceId); }));
