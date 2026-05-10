@@ -5,7 +5,7 @@ import case002Data from './data.json';
 export const case002Definition: CaseDefinition = {
   meta: {
     id: 'case-002',
-    title: '08:17 的通话',
+    title: '办公室的谋杀案',
     difficulty: 'normal',
     tutorialMode: false,
     order: 2,

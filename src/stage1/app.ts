@@ -323,7 +323,10 @@ export class StageOneApp {
       if (effect.description) {
         this.state.inspectCard = { hotspotLabel: hotspot.label, clue: null, description: effect.description, searchHotspotId: effect.searchHotspotId };
       } else {
-        this.state.inspectCard = { hotspotLabel: hotspot.label, clue: this.state.inventory[0] ?? null };
+        const addClueEffect = hotspot.onInteract.find((e) => e.type === 'addClue');
+        const clueId = addClueEffect?.type === 'addClue' ? addClueEffect.clueId : null;
+        const clue = clueId ? (this.state.inventory.find((c) => c.id === clueId) ?? null) : null;
+        this.state.inspectCard = { hotspotLabel: hotspot.label, clue };
       }
     }
     if (effect.type === 'addClue') {
@@ -1075,12 +1078,23 @@ export class StageOneApp {
 
   private getHotspotState(hotspotId: string): 'idle' | 'done' {
     const caseConfig = loadCaseConfig(this.state.caseId);
-    for (const scene of caseConfig.scenes) {
-      const hotspot = scene.hotspots.find((h) => h.id === hotspotId);
-      if (!hotspot) continue;
-      const clueEffect = hotspot.onInteract.find((e) => e.type === 'addClue');
-      if (!clueEffect || clueEffect.type !== 'addClue') return 'idle';
+    const allHotspots = caseConfig.scenes.flatMap((s) => s.hotspots);
+    const hotspot = allHotspots.find((h) => h.id === hotspotId);
+    if (!hotspot) return 'idle';
+    const clueEffect = hotspot.onInteract.find((e) => e.type === 'addClue');
+    if (clueEffect && clueEffect.type === 'addClue') {
       return this.state.inventory.some((item) => item.id === clueEffect.clueId) ? 'done' : 'idle';
+    }
+    // Description-mode hotspot: check if the linked search hotspot's clue has been collected
+    const overlayEffect = hotspot.onInteract.find((e) => e.type === 'openOverlay');
+    if (overlayEffect?.type === 'openOverlay' && overlayEffect.searchHotspotId) {
+      const linkedHotspot = allHotspots.find((h) => h.id === overlayEffect.searchHotspotId);
+      if (linkedHotspot) {
+        const linkedClueEffect = linkedHotspot.onInteract.find((e) => e.type === 'addClue');
+        if (linkedClueEffect && linkedClueEffect.type === 'addClue') {
+          return this.state.inventory.some((item) => item.id === linkedClueEffect.clueId) ? 'done' : 'idle';
+        }
+      }
     }
     return 'idle';
   }
@@ -1448,7 +1462,7 @@ export class StageOneApp {
     for (const entry of flow.flagBasedNextActions ?? []) {
       if (this.state.flags[entry.whenFlag]) actions.push(entry.thenShow);
     }
-    return actions.slice(0, 2);
+    return actions.slice(-1);
   }
 
   private renderInvestigationBody(background: string): string {

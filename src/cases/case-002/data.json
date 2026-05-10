@@ -975,10 +975,10 @@
   },
   "audio": {
     "sceneBgm": {
-      "meeting_room": "room_loop.mp3",
+      "meeting_room": "revelation_loop.mp3",
       "office_area": "investigation_loop.mp3",
-      "corridor": "hallway_loop.mp3",
-      "convenience_store": "pantry_loop.mp3"
+      "corridor": "confrontation_loop.mp3",
+      "convenience_store": "investigation_loop.mp3"
     }
   }
 }
